@@ -1,0 +1,97 @@
+version: "3.9"
+
+services:
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: mqtt
+    ports:
+      - "1883:1883"
+    networks:
+      - open5gs
+    volumes:
+      - ./mqtt/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt_data:/mosquitto/data
+      - mqtt_log:/mosquitto/log
+
+  nodered:
+    image: nodered/node-red:latest
+    container_name: nodered
+    ports:
+      - "1880:1880"
+    networks:
+      - open5gs
+    volumes:
+      - nodered_data:/data
+    restart: unless-stopped
+
+  edge:
+    image: python:3.11-slim
+    container_name: edge
+    working_dir: /app
+    volumes:
+      - ./edge/app.py:/app/app.py:ro
+    command: sh -lc "pip install -q flask paho-mqtt && python /app/app.py"
+    environment:
+      - MQTT_HOST=mqtt
+      - MQTT_PORT=1883
+      - MQTT_TOPIC=veh/telemetry
+    ports:
+      - "5000:5000"
+    networks:
+      - open5gs
+  sim-iot-01:
+    image: python:3.11-slim
+    container_name: sim-iot-01
+    network_mode: "container:ue-iot-01"
+    volumes:
+      - ../../apps/iot-scripts:/iot:ro
+    command: sh -lc "pip install -q paho-mqtt && python /iot/ue-iot-01.py"
+    restart: unless-stopped
+
+  sim-iot-02:
+    image: python:3.11-slim
+    container_name: sim-iot-02
+    network_mode: "container:ue-iot-02"
+    volumes:
+      - ../../apps/iot-scripts:/iot:ro
+    command: sh -lc "pip install -q paho-mqtt && python /iot/ue-iot-02.py"
+    restart: unless-stopped
+
+  sim-iot-03:
+    image: python:3.11-slim
+    container_name: sim-iot-03
+    network_mode: "container:ue-iot-03"
+    volumes:
+      - ../../apps/iot-scripts:/iot:ro
+    command: sh -lc "pip install -q paho-mqtt && python /iot/ue-iot-03.py"
+    restart: unless-stopped  
+  sim-veh-01:
+    image: python:3.11-slim
+    container_name: sim-veh-01
+    network_mode: "container:ue-veh-01"
+    volumes:
+      - ../../apps/veh-scripts:/veh:ro
+    environment:
+      - EDGE_URL=http://edge:5000/telemetry
+      - UE_NAME=ue-veh-01
+    command: sh -lc "pip install -q requests && python /veh/ue-veh-01.py"
+    restart: unless-stopped
+
+  sim-veh-02:
+    image: python:3.11-slim
+    container_name: sim-veh-02
+    network_mode: "container:ue-veh-02"
+    volumes:
+      - ../../apps/veh-scripts:/veh:ro
+    environment:
+      - EDGE_URL=http://edge:5000/telemetry
+      - UE_NAME=ue-veh-02
+    command: sh -lc "pip install -q requests && python /veh/ue-veh-02.py"
+    restart: unless-stopped  
+volumes:
+  mqtt_data:
+  mqtt_log:
+  nodered_data:
+networks:
+  open5gs:
+    external: true
