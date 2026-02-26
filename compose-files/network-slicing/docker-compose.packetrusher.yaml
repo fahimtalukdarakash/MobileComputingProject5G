@@ -1,0 +1,36 @@
+# PacketRusher Load Test — Attaches to existing network-slicing deployment
+# Usage: docker compose -f compose-files/network-slicing/docker-compose.packetrusher.yaml --env-file=build-files/open5gs.env up -d
+services:
+  packetrusher:
+    container_name: packetrusher
+    image: "fgftk/packetrusher:${PACKETRUSHER_VERSION}"
+    command: "--config /PacketRusher/config/packetrusher.yaml ue"
+    networks:
+      open5gs:
+        aliases:
+          - gnb.packetrusher.org
+    configs:
+      - source: packetrusher_config
+        target: /PacketRusher/config/packetrusher.yaml
+    privileged: true
+    cap_add:
+      - ALL
+    depends_on:
+      - iperf-server
+
+  iperf-server:
+    container_name: iperf-server
+    image: "mlabbe/iperf3:latest"
+    command: "-s"
+    networks:
+      open5gs:
+        aliases:
+          - test.iperf.org
+
+networks:
+  open5gs:
+    external: true
+
+configs:
+  packetrusher_config:
+    file: ../../configs/network-slicing/packetrusher.yaml

@@ -1,0 +1,129 @@
+# =============================================================================
+# Use Case Simulators for Network Slicing
+# =============================================================================
+# Maps simulators to network-slicing UEs (ue1, ue2, ue3).
+# Each simulator shares the UE's network namespace (network_mode: container:X)
+# so traffic flows through the GTP tunnel → UPF → service.
+#
+# Usage:
+#   docker compose -f compose-files/network-slicing/docker-compose.usecases.yaml up -d sim-iot-01
+#
+
+services:
+
+  # =========================================================================
+  # USE CASE 1: IoT Environmental Monitoring (Slice 1 via UE1)
+  # =========================================================================
+  # Sensors: temperature, humidity → MQTT → NodeRED dashboard
+  sim-iot-01:
+    image: python:3.11-slim
+    container_name: sim-iot-01
+    network_mode: "container:ue1"
+    volumes:
+      - ../../apps/iot-scripts:/iot:ro
+    command: sh -lc "pip install -q paho-mqtt && python /iot/ue-iot-01.py"
+    restart: unless-stopped
+
+  # =========================================================================
+  # USE CASE 2: Smart City Air Quality (Slice 1 via UE1)
+  # =========================================================================
+  # Sensors: CO2, PM2.5 → MQTT → NodeRED dashboard
+  sim-iot-02:
+    image: python:3.11-slim
+    container_name: sim-iot-02
+    network_mode: "container:ue1"
+    volumes:
+      - ../../apps/iot-scripts:/iot:ro
+    command: sh -lc "pip install -q paho-mqtt && python /iot/ue-iot-02.py"
+    restart: unless-stopped
+
+  # =========================================================================
+  # USE CASE 3: eHealth / Environmental (Slice 1 via UE1)
+  # =========================================================================
+  # Sensors: temperature, pressure, battery → MQTT → NodeRED dashboard
+  sim-iot-03:
+    image: python:3.11-slim
+    container_name: sim-iot-03
+    network_mode: "container:ue1"
+    volumes:
+      - ../../apps/iot-scripts:/iot:ro
+    command: sh -lc "pip install -q paho-mqtt && python /iot/ue-iot-03.py"
+    restart: unless-stopped
+
+  # =========================================================================
+  # USE CASE 4: Vehicle GPS Tracking (Slice 2 via UE2)
+  # =========================================================================
+  # Vehicle GPS + speed → HTTP POST to Edge server → MQTT
+  sim-veh-01:
+    image: python:3.11-slim
+    container_name: sim-veh-01
+    network_mode: "container:ue2"
+    volumes:
+      - ../../apps/veh-scripts:/veh:ro
+    environment:
+      - EDGE_URL=http://edge:5000/telemetry
+      - UE_NAME=ue-veh-01
+    command: sh -lc "pip install -q requests && python /veh/ue-veh-01.py"
+    restart: unless-stopped
+
+  # =========================================================================
+  # USE CASE 5: Vehicle Alert System (Slice 2 via UE2)
+  # =========================================================================
+  # Vehicle alerts (hard brake, overspeed, etc.) → Edge server → MQTT
+  sim-veh-02:
+    image: python:3.11-slim
+    container_name: sim-veh-02
+    network_mode: "container:ue2"
+    volumes:
+      - ../../apps/veh-scripts:/veh:ro
+    environment:
+      - EDGE_URL=http://edge:5000/telemetry
+      - UE_NAME=ue-veh-02
+    command: sh -lc "pip install -q requests && python /veh/ue-veh-02.py"
+    restart: unless-stopped
+
+  # =========================================================================
+  # USE CASE 6: Restricted IoT (Slice 3 via UE3 — NO INTERNET)
+  # =========================================================================
+  # Same IoT data but routed through UE3's restricted network.
+  # Can reach MQTT (internal) but cannot reach the internet.
+  sim-restricted:
+    image: python:3.11-slim
+    container_name: sim-restricted
+    network_mode: "container:ue3"
+    volumes:
+      - ../../apps/iot-scripts:/iot:ro
+    command: >
+      sh -lc "pip install -q paho-mqtt && python -c \"
+      import json, random, time
+      from paho.mqtt import client as mqtt
+      c = mqtt.Client(client_id='ue-restricted-01')
+      c.connect('mqtt', 1883, 60)
+      c.loop_start()
+      while True:
+          p = {'ue':'ue3-restricted','temperature_c':round(random.uniform(18,28),1),'humidity_percent':random.randint(30,80),'restricted':True,'ts':int(time.time())}
+          c.publish('iot/restricted', json.dumps(p))
+          print(f'Published -> iot/restricted: {json.dumps(p)}', flush=True)
+          time.sleep(3)
+      \""
+    restart: unless-stopped
+
+  # =========================================================================
+  # USE CASE 7: Slice 3 Fallback (Resilience Backup via UE3)
+  # =========================================================================
+  # When Slice 1 (IoT) and/or Slice 2 (Vehicle) are down, this simulator
+  # provides full data redundancy by publishing to ALL the same MQTT topics
+  # through Slice 3 (UE3). Proves slice resilience and network isolation.
+  sim-fallback:
+    image: python:3.11-slim
+    container_name: sim-fallback
+    networks:
+      - open5gs
+    volumes:
+      - ../../apps/iot-scripts:/iot:ro
+    command: sh -lc "pip install -q paho-mqtt && python /iot/ue3-fallback.py"
+    restart: unless-stopped
+
+networks:
+  open5gs:
+    external: true

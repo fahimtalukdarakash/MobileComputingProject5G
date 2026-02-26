@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5G Framework – Load Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+        .navbar { background: #1e293b; border-bottom: 1px solid #334155; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+        .navbar h1 { font-size: 18px; font-weight: 600; color: #f8fafc; }
+        .navbar h1 span { color: #38bdf8; }
+        .nav-links { display: flex; gap: 8px; }
+        .nav-links a { color: #94a3b8; text-decoration: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; transition: all 0.2s; }
+        .nav-links a:hover, .nav-links a.active { color: #f8fafc; background: #334155; }
+        .main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+
+        .panel { background: #1e293b; border-radius: 10px; border: 1px solid #334155; overflow: hidden; margin-bottom: 16px; }
+        .panel-header { padding: 12px 16px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
+        .panel-header h3 { font-size: 13px; font-weight: 600; color: #f8fafc; }
+        .panel-body { padding: 16px; }
+
+        .btn { padding: 7px 16px; border: 1px solid #334155; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; background: #1e293b; color: #e2e8f0; }
+        .btn:hover { background: #334155; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-green { border-color: #16a34a; color: #4ade80; background: #166534; }
+        .btn-red { border-color: #dc2626; color: #f87171; background: #7f1d1d; }
+        .btn-blue { border-color: #0ea5e9; color: #38bdf8; background: #1e3a5f; }
+        .btn-orange { border-color: #ea580c; color: #fb923c; background: #7c2d12; }
+
+        .summary-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+        .summary-card { background: #1e293b; border-radius: 10px; padding: 16px; text-align: center; border: 1px solid #334155; }
+        .summary-card .num { font-size: 24px; font-weight: 700; }
+        .summary-card .lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; margin-top: 2px; letter-spacing: 0.5px; }
+
+        .comparison-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+        .comparison-table th { text-align: left; padding: 10px 14px; background: #0f172a; color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .comparison-table td { padding: 10px 14px; border-bottom: 1px solid #0f172a; }
+        .comparison-table tr:hover { background: #0f172a; }
+
+        .log-box { background: #0f172a; border-radius: 6px; padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #94a3b8; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+
+        .stat-box { background: #0f172a; border-radius: 8px; padding: 14px; text-align: center; }
+        .stat-box .val { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+        .stat-box .lbl { font-size: 10px; color: #64748b; text-transform: uppercase; }
+
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .badge-green { background: #166534; color: #4ade80; }
+        .badge-red { background: #7f1d1d; color: #f87171; }
+        .badge-gray { background: #334155; color: #94a3b8; }
+
+        input[type="number"] { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 6px 10px; border-radius: 6px; font-size: 13px; width: 80px; font-family: inherit; }
+
+        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #334155; border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 6px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 999; }
+        .toast { padding: 10px 16px; border-radius: 8px; font-size: 12px; margin-top: 8px; animation: fadeIn 0.3s; }
+        .toast.success { background: #166534; color: #4ade80; }
+        .toast.error { background: #7f1d1d; color: #f87171; }
+        .toast.info { background: #1e3a5f; color: #38bdf8; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h1>📡 <span>5G</span> Network Framework</h1>
+    <div class="nav-links">
+        <a href="/">Topology</a>
+        <a href="/control">Control</a>
+        <a href="/usecases">Use Cases</a>
+        <a href="/verify">Verify</a>
+        <a href="/monitoring">Monitor</a>
+        <a href="/loadtest" class="active">Load Test</a>
+    </div>
+</div>
+
+<div class="main">
+    <h2 style="font-size:16px;margin-bottom:4px;color:#f8fafc">🚀 Performance & Load Testing</h2>
+    <p style="font-size:12px;color:#64748b;margin-bottom:16px">PacketRusher — multi-UE stress test with real GTP-U tunnel throughput</p>
+
+    <!-- Status cards -->
+    <div class="summary-row">
+        <div class="summary-card">
+            <div class="num" style="color:#38bdf8" id="s-pr-status">—</div>
+            <div class="lbl">PacketRusher</div>
+        </div>
+        <div class="summary-card">
+            <div class="num" style="color:#4ade80" id="s-iperf-status">—</div>
+            <div class="lbl">iperf3 Server</div>
+        </div>
+        <div class="summary-card">
+            <div class="num" style="color:#c084fc" id="s-subscribers">—</div>
+            <div class="lbl">Provisioned UEs</div>
+        </div>
+        <div class="summary-card">
+            <div class="num" style="color:#fb923c" id="s-ueransim">3</div>
+            <div class="lbl">UERANSIM UEs</div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <!-- Left: Comparison + Controls -->
+        <div>
+            <!-- Comparison Panel -->
+            <div class="panel">
+                <div class="panel-header"><h3>📊 UERANSIM vs PacketRusher</h3></div>
+                <div class="panel-body" style="padding:0">
+                    <table class="comparison-table">
+                        <tr><th>Feature</th><th style="color:#EA580C">UERANSIM</th><th style="color:#38bdf8">PacketRusher</th></tr>
+                        <tr><td>Purpose</td><td>Functional testing</td><td>Performance/load testing</td></tr>
+                        <tr><td>UE Simulation</td><td>3 UEs (one per slice)</td><td>1–100+ UEs (scalable)</td></tr>
+                        <tr><td>Network Slicing</td><td>✅ 3 slices</td><td>Single slice per test</td></tr>
+                        <tr><td>GTP Tunnel</td><td>uesimtun0</td><td>Native GTP-U (gtp5g kernel)</td></tr>
+                        <tr><td>Throughput Test</td><td>Docker bridge (iperf3)</td><td>Through GTP tunnel (real UPF)</td></tr>
+                        <tr><td>Multi-UE Stress</td><td>❌ Fixed 3 UEs</td><td>✅ Configurable N UEs</td></tr>
+                        <tr><td>Use Cases</td><td>IoT, Vehicle, Restricted</td><td>Load/capacity testing</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="panel">
+                <div class="panel-header"><h3>⚙ PacketRusher Controls</h3></div>
+                <div class="panel-body">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+                        <button class="btn btn-green" onclick="provisionSubs()">📝 Provision Subscribers</button>
+                        <button class="btn btn-blue" onclick="startPR()">▶ Start Single UE</button>
+                        <button class="btn btn-red" onclick="stopPR()">⏹ Stop</button>
+                        <button class="btn" onclick="refreshStatus()">⟳ Refresh</button>
+                    </div>
+
+                    <div style="font-size:11px;color:#64748b;margin-bottom:12px">
+                        <strong>Step 1:</strong> Provision subscribers → <strong>Step 2:</strong> Start Single UE → <strong>Step 3:</strong> Run GTP Throughput or Multi-UE test
+                    </div>
+
+                    <div id="pr-logs" class="log-box" style="min-height:100px">Waiting...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Tests -->
+        <div>
+            <!-- GTP Throughput Test -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>📡 GTP Tunnel Throughput</h3>
+                    <span class="badge badge-gray" style="font-size:9px">Traffic through real UPF</span>
+                </div>
+                <div class="panel-body">
+                    <p style="font-size:11px;color:#64748b;margin-bottom:12px">
+                        Measures throughput through the actual GTP-U tunnel via UPF — unlike UERANSIM iperf3 which goes through Docker bridge network.
+                    </p>
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                        <span style="font-size:12px">Duration:</span>
+                        <input type="number" id="gtp-duration" value="5" min="2" max="30">
+                        <span style="font-size:12px">sec</span>
+                        <button class="btn btn-blue" onclick="runGTPTest()" id="btn-gtp">▶ Run</button>
+                    </div>
+                    <div class="grid-2" style="margin-bottom:0">
+                        <div class="stat-box">
+                            <div class="val" style="color:#4ade80" id="gtp-upload">—</div>
+                            <div class="lbl">↑ Upload (Mbps)</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="val" style="color:#38bdf8" id="gtp-download">—</div>
+                            <div class="lbl">↓ Download (Mbps)</div>
+                        </div>
+                    </div>
+                    <div id="gtp-note" style="font-size:10px;color:#64748b;margin-top:8px;text-align:center"></div>
+                </div>
+            </div>
+
+            <!-- Multi-UE Load Test -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>🔥 Multi-UE Load Test</h3>
+                    <span class="badge badge-gray" style="font-size:9px">Stress test</span>
+                </div>
+                <div class="panel-body">
+                    <p style="font-size:11px;color:#64748b;margin-bottom:12px">
+                        Simulates multiple UEs registering simultaneously. Measures registration success rate and time.
+                    </p>
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                        <span style="font-size:12px">Number of UEs:</span>
+                        <input type="number" id="multi-ue-count" value="5" min="1" max="50">
+                        <button class="btn btn-orange" onclick="runMultiUE()" id="btn-multi">🚀 Run Load Test</button>
+                        <button class="btn btn-blue" onclick="showTopology()" id="btn-topo" disabled style="opacity:0.4">🗺 View Topology</button>
+                    </div>
+                    <div class="grid-3" style="margin-bottom:10px">
+                        <div class="stat-box">
+                            <div class="val" style="color:#fb923c" id="multi-ues">—</div>
+                            <div class="lbl">UEs Requested</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="val" style="color:#4ade80" id="multi-registered">—</div>
+                            <div class="lbl">Registrations</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="val" style="color:#fbbf24" id="multi-time">—</div>
+                            <div class="lbl">Total Time (s)</div>
+                        </div>
+                    </div>
+                    <div id="multi-output" class="log-box" style="min-height:80px;max-height:200px">Results will appear here...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full-width panels below the grid -->
+
+    <!-- Topology Visualization (hidden until test completes) -->
+    <div class="panel" id="topo-panel" style="display:none">
+        <div class="panel-header">
+            <h3>🗺 PacketRusher Topology</h3>
+            <button class="btn" onclick="document.getElementById('topo-panel').style.display='none'" style="font-size:11px">✕ Close</button>
+        </div>
+        <div class="panel-body" style="padding:8px">
+            <div id="topo-canvas" style="height:420px;border-radius:8px;background:#0a0f1a;border:1px solid #1e293b"></div>
+            <div id="topo-legend" style="margin-top:8px;font-size:10px;color:#64748b;display:flex;gap:14px;flex-wrap:wrap;justify-content:center"></div>
+        </div>
+    </div>
+
+    <!-- Call Simulation -->
+    <div class="panel" id="callsim-panel" style="opacity:0.4;pointer-events:none">
+        <div class="panel-header">
+            <h3>📞 Call Simulation</h3>
+            <span class="badge badge-gray" style="font-size:9px" id="callsim-badge">Run Multi-UE Load Test first</span>
+        </div>
+                <div class="panel-body">
+                    <p style="font-size:11px;color:#64748b;margin-bottom:12px">
+                        Simulate calls between UEs with real MQTT message exchange as proof of communication.
+                        Emergency 112 calls get highest priority with fastest connection setup.
+                    </p>
+
+                    <!-- Call Controls -->
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+                        <span style="font-size:12px">From:</span>
+                        <select id="call-from" style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:12px">
+                        </select>
+                        <span style="font-size:12px">To:</span>
+                        <select id="call-to" style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:12px">
+                        </select>
+                        <span style="font-size:12px">Type:</span>
+                        <select id="call-type" style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:12px" onchange="updateCallTypeInfo()">
+                            <option value="voice">📞 Voice Call</option>
+                            <option value="video">📹 Video Call</option>
+                            <option value="emergency">🚨 Emergency 112</option>
+                        </select>
+                        <button class="btn btn-green" onclick="initiateCall()" id="btn-call">📞 Call</button>
+                        <button class="btn btn-red" onclick="terminateCall()" id="btn-hangup" disabled>📴 End Call</button>
+                    </div>
+
+                    <!-- Call Type Info -->
+                    <div id="call-type-info" style="background:#0f172a;border-radius:6px;padding:10px;font-size:11px;color:#64748b;margin-bottom:14px"></div>
+
+                    <!-- Split View: Logs + Visualization -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                        <!-- Left: Logs -->
+                        <div>
+                            <div style="font-size:11px;color:#64748b;margin-bottom:6px;font-weight:600">📋 Signaling & Media Logs</div>
+                            <div id="call-logs" class="log-box" style="min-height:280px;max-height:350px;font-size:10px"></div>
+                        </div>
+                        <!-- Right: Visualization -->
+                        <div>
+                            <div style="font-size:11px;color:#64748b;margin-bottom:6px;font-weight:600">📊 Real-Time Call Status</div>
+                            <div style="background:#0a0f1a;border-radius:6px;padding:14px;min-height:280px">
+                                <!-- Call status -->
+                                <div style="text-align:center;margin-bottom:16px">
+                                    <div style="font-size:36px;margin-bottom:4px" id="call-icon">📵</div>
+                                    <div style="font-size:14px;font-weight:700;color:#f8fafc" id="call-status-text">No Active Call</div>
+                                    <div style="font-size:11px;color:#64748b" id="call-parties"></div>
+                                </div>
+                                <!-- Stats Grid -->
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+                                    <div style="background:#1e293b;border-radius:6px;padding:10px;text-align:center">
+                                        <div style="font-size:18px;font-weight:700;color:#4ade80" id="call-duration">0.0s</div>
+                                        <div style="font-size:9px;color:#64748b">DURATION</div>
+                                    </div>
+                                    <div style="background:#1e293b;border-radius:6px;padding:10px;text-align:center">
+                                        <div style="font-size:18px;font-weight:700;color:#38bdf8" id="call-packets">0</div>
+                                        <div style="font-size:9px;color:#64748b">PACKETS</div>
+                                    </div>
+                                    <div style="background:#1e293b;border-radius:6px;padding:10px;text-align:center">
+                                        <div style="font-size:18px;font-weight:700;color:#fbbf24" id="call-bytes">0 KB</div>
+                                        <div style="font-size:9px;color:#64748b">DATA SENT</div>
+                                    </div>
+                                    <div style="background:#1e293b;border-radius:6px;padding:10px;text-align:center">
+                                        <div style="font-size:18px;font-weight:700;color:#c084fc" id="call-qos">—</div>
+                                        <div style="font-size:9px;color:#64748b">5QI / PRIORITY</div>
+                                    </div>
+                                </div>
+                                <!-- Packet Flow Animation -->
+                                <div style="text-align:center">
+                                    <div style="font-size:10px;color:#64748b;margin-bottom:6px">MQTT Packet Flow</div>
+                                    <div id="call-flow" style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px">
+                                        <span id="flow-caller" style="color:#4ade80;font-weight:600">—</span>
+                                        <span id="flow-arrow" style="color:#334155">· · · · ·</span>
+                                        <span id="flow-callee" style="color:#38bdf8;font-weight:600">—</span>
+                                    </div>
+                                    <div id="call-mqtt-topic" style="font-size:9px;color:#475569;margin-top:4px"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script>
+const API = window.location.origin;
+let lastTestResult = null;
+
+function toast(msg, type='info') {
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+function refreshStatus() {
+    fetch(`${API}/api/loadtest/status`)
+        .then(r => r.json())
+        .then(data => {
+            const s = data.status || {};
+            document.getElementById('s-pr-status').textContent = s.packetrusher_running ? '● Running' : '○ Stopped';
+            document.getElementById('s-pr-status').style.color = s.packetrusher_running ? '#4ade80' : '#f87171';
+            document.getElementById('s-iperf-status').textContent = s.iperf_server_running ? '● Running' : '○ Stopped';
+            document.getElementById('s-iperf-status').style.color = s.iperf_server_running ? '#4ade80' : '#f87171';
+            document.getElementById('s-subscribers').textContent = s.subscriber_count || 0;
+            if (s.logs) document.getElementById('pr-logs').textContent = s.logs;
+        })
+        .catch(e => console.error(e));
+}
+
+function provisionSubs() {
+    const count = parseInt(document.getElementById('multi-ue-count').value) || 10;
+    toast(`Provisioning ${count} subscribers...`, 'info');
+    fetch(`${API}/api/loadtest/provision?count=${count}`, {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+            toast(data.success ? `Provisioned ${data.count} subscribers (${data.imsi_range})` : 'Provisioning failed', data.success ? 'success' : 'error');
+            refreshStatus();
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function startPR() {
+    toast('Starting PacketRusher...', 'info');
+    fetch(`${API}/api/loadtest/start`, {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+            toast(data.message, data.success ? 'success' : 'error');
+            refreshStatus();
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function stopPR() {
+    fetch(`${API}/api/loadtest/stop`, {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+            toast(data.message, 'success');
+            refreshStatus();
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function pollTask(taskId, onComplete, onError) {
+    const poll = () => {
+        fetch(`${API}/api/loadtest/task/${taskId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'complete' || data.status === 'error') {
+                    onComplete(data);
+                } else {
+                    setTimeout(poll, 2000);
+                }
+            })
+            .catch(e => onError(e));
+    };
+    setTimeout(poll, 2000);
+}
+
+function runGTPTest() {
+    const dur = parseInt(document.getElementById('gtp-duration').value) || 5;
+    const btn = document.getElementById('btn-gtp');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Running...';
+    document.getElementById('gtp-upload').textContent = '...';
+    document.getElementById('gtp-download').textContent = '...';
+    document.getElementById('gtp-note').textContent = `Running GTP throughput test (${dur}s)... please wait`;
+
+    fetch(`${API}/api/loadtest/gtp-throughput?duration=${dur}`, {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.task_id) {
+                // Poll for result
+                pollTask(data.task_id, (result) => {
+                    if (result.success) {
+                        const ul = result.upload || {};
+                        const dl = result.download || {};
+                        document.getElementById('gtp-upload').textContent = ul.success ? ul.mbps : 'ERR';
+                        document.getElementById('gtp-download').textContent = dl.success ? dl.mbps : 'ERR';
+                        document.getElementById('gtp-note').textContent = (result.note || '') + ' | ' + (result.timestamp || '');
+                        toast('GTP throughput test complete', 'success');
+                    } else {
+                        document.getElementById('gtp-upload').textContent = 'ERR';
+                        document.getElementById('gtp-download').textContent = 'ERR';
+                        document.getElementById('gtp-note').textContent = result.error || 'Failed';
+                        toast(result.error || 'Test failed', 'error');
+                    }
+                    btn.disabled = false;
+                    btn.innerHTML = '▶ Run';
+                }, (err) => {
+                    toast('Polling error: ' + err, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '▶ Run';
+                });
+            } else {
+                // Immediate error (e.g. PR not running)
+                document.getElementById('gtp-note').textContent = data.error || 'Failed';
+                toast(data.error || 'Test failed', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '▶ Run';
+            }
+        })
+        .catch(e => {
+            toast('Error: ' + e, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '▶ Run';
+        });
+}
+
+function runMultiUE() {
+    const count = parseInt(document.getElementById('multi-ue-count').value) || 5;
+    const btn = document.getElementById('btn-multi');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Running...';
+    document.getElementById('multi-output').textContent = `Starting load test with ${count} UEs... This may take 1-2 minutes. Polling for results...`;
+
+    fetch(`${API}/api/loadtest/multi-ue?count=${count}`, {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.task_id) {
+                pollTask(data.task_id, (result) => {
+                    lastTestResult = result;
+                    document.getElementById('multi-ues').textContent = result.num_ues || '—';
+                    document.getElementById('multi-registered').textContent = result.registrations_detected || '0';
+                    document.getElementById('multi-time').textContent = result.elapsed_seconds || '—';
+                    const pdu = result.pdu_sessions_established || 0;
+                    const addrs = (result.pdu_addresses || []).join(', ');
+                    const summary = `Registrations: ${result.registrations_detected || 0} | PDU Sessions: ${pdu}${addrs ? ' | IPs: ' + addrs : ''} | Errors: ${result.errors_detected || 0}`;
+                    document.getElementById('multi-output').textContent = summary + '\n\n--- Raw Logs ---\n' + (result.output || 'No output');
+                    toast(result.status === 'complete' ? `Load test complete: ${result.num_ues} UEs in ${result.elapsed_seconds}s` : 'Load test failed', result.status === 'complete' ? 'success' : 'error');
+                    // Enable topology button
+                    if (result.registrations_detected > 0) {
+                        const tb = document.getElementById('btn-topo');
+                        tb.disabled = false;
+                        tb.style.opacity = '1';
+                        // Enable call simulation
+                        enableCallSim(result);
+                    }
+                    btn.disabled = false;
+                    btn.innerHTML = '🚀 Run Load Test';
+                    refreshStatus();
+                }, (err) => {
+                    toast('Polling error: ' + err, 'error');
+                    document.getElementById('multi-output').textContent = 'Error: ' + err;
+                    btn.disabled = false;
+                    btn.innerHTML = '🚀 Run Load Test';
+                });
+            } else {
+                toast(data.error || 'Failed to start', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '🚀 Run Load Test';
+            }
+        })
+        .catch(e => {
+            toast('Error: ' + e, 'error');
+            document.getElementById('multi-output').textContent = 'Error: ' + e;
+            btn.disabled = false;
+            btn.innerHTML = '🚀 Run Load Test';
+        });
+}
+
+// Init
+refreshStatus();
+setInterval(refreshStatus, 10000);
+
+// =============================================================================
+// Call Simulation
+// =============================================================================
+let callPollInterval = null;
+let currentCallId = null;
+let registeredUEs = []; // Populated from load test results
+
+const CALL_TYPE_INFO = {
+    voice: { icon: '📞', color: '#4ade80', info: '5QI=1 | QFI=1 | 64 kbps AMR-WB | Priority 5 | Setup ~1.8s' },
+    video: { icon: '📹', color: '#38bdf8', info: '5QI=2 | QFI=2 | 2 Mbps H.264 720p | Priority 4 | Setup ~2.2s' },
+    emergency: { icon: '🚨', color: '#f87171', info: '5QI=69 | QFI=3 | 64 kbps AMR-WB Priority | Priority 0 (HIGHEST) | Setup ~0.5s | Pre-emption ENABLED' },
+};
+
+function enableCallSim(testResult) {
+    const panel = document.getElementById('callsim-panel');
+    panel.style.opacity = '1';
+    panel.style.pointerEvents = 'auto';
+    document.getElementById('callsim-badge').textContent = `${testResult.num_ues} UEs registered`;
+    document.getElementById('callsim-badge').style.background = '#166534';
+    document.getElementById('callsim-badge').style.color = '#4ade80';
+
+    // Build UE list from test results
+    const numUEs = testResult.num_ues || 5;
+    const addrs = testResult.pdu_addresses || [];
+    registeredUEs = [];
+    for (let i = 0; i < numUEs; i++) {
+        const imsi = `001010000000${(100 + i).toString().padStart(3, '0')}`;
+        const ip = addrs[i] || `10.45.0.${19 + i}`;
+        registeredUEs.push({ id: `UE${i+1}`, imsi: imsi, ip: ip });
+    }
+
+    populateUEDropdowns();
+    updateCallTypeInfo();
+}
+
+function updateCallTypeInfo() {
+    const ct = document.getElementById('call-type').value;
+    const info = CALL_TYPE_INFO[ct];
+    document.getElementById('call-type-info').innerHTML = `<span style="color:${info.color}">${info.icon} ${ct.toUpperCase()}</span> — ${info.info}`;
+
+    // Toggle "To" dropdown for emergency
+    const toSelect = document.getElementById('call-to');
+    if (ct === 'emergency') {
+        toSelect.innerHTML = '<option value="112-Emergency">🚨 112 Emergency Center</option>';
+        toSelect.disabled = true;
+    } else {
+        populateUEDropdowns();
+        toSelect.disabled = false;
+    }
+}
+
+function populateUEDropdowns() {
+    if (registeredUEs.length === 0) return;
+
+    const fromSel = document.getElementById('call-from');
+    const toSel = document.getElementById('call-to');
+    const ct = document.getElementById('call-type').value;
+
+    const curFrom = fromSel.value;
+    const curTo = toSel.value;
+
+    fromSel.innerHTML = '';
+    if (ct !== 'emergency') toSel.innerHTML = '';
+
+    registeredUEs.forEach(ue => {
+        const label = `${ue.id} (IMSI: ...${ue.imsi.slice(-4)}, IP: ${ue.ip})`;
+        fromSel.innerHTML += `<option value="${ue.id}">${label}</option>`;
+        if (ct !== 'emergency') {
+            toSel.innerHTML += `<option value="${ue.id}">${label}</option>`;
+        }
+    });
+
+    if (curFrom) fromSel.value = curFrom;
+    if (curTo && ct !== 'emergency') toSel.value = curTo;
+    else if (registeredUEs.length >= 2 && ct !== 'emergency') toSel.value = registeredUEs[1].id;
+}
+
+function getUEInfo(ueId) {
+    return registeredUEs.find(u => u.id === ueId) || { id: ueId, imsi: '?', ip: '?' };
+}
+
+function initiateCall() {
+    const caller = document.getElementById('call-from').value;
+    const callee = document.getElementById('call-to').value;
+    const callType = document.getElementById('call-type').value;
+
+    if (caller === callee && callType !== 'emergency') {
+        toast('Cannot call yourself!', 'error');
+        return;
+    }
+
+    const callerInfo = getUEInfo(caller);
+    const calleeInfo = callType === 'emergency' ? { id: '112-Emergency', imsi: '112', ip: 'emergency.ims' } : getUEInfo(callee);
+
+    document.getElementById('btn-call').disabled = true;
+    document.getElementById('btn-hangup').disabled = false;
+    document.getElementById('call-logs').textContent = '';
+    document.getElementById('call-status-text').textContent = 'Connecting...';
+    document.getElementById('call-icon').textContent = CALL_TYPE_INFO[callType].icon;
+    document.getElementById('flow-caller').textContent = `${callerInfo.id} (${callerInfo.ip})`;
+    document.getElementById('flow-callee').textContent = callType === 'emergency' ? '🚨 112' : `${calleeInfo.id} (${calleeInfo.ip})`;
+
+    // Pass IMSI in caller/callee names for realistic logs
+    const callerLabel = `${caller}[IMSI:${callerInfo.imsi}]`;
+    const calleeLabel = callType === 'emergency' ? '112-Emergency' : `${callee}[IMSI:${calleeInfo.imsi}]`;
+
+    fetch(`${API}/api/call/initiate?caller=${encodeURIComponent(callerLabel)}&callee=${encodeURIComponent(calleeLabel)}&call_type=${callType}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                currentCallId = data.call_id;
+                toast(`${data.profile_name}: ${caller} → ${callType === 'emergency' ? '112' : callee}`, 'success');
+                startCallPolling();
+            } else {
+                toast(data.error || 'Failed', 'error');
+                document.getElementById('btn-call').disabled = false;
+                document.getElementById('btn-hangup').disabled = true;
+            }
+        })
+        .catch(e => {
+            toast('Error: ' + e, 'error');
+            document.getElementById('btn-call').disabled = false;
+            document.getElementById('btn-hangup').disabled = true;
+        });
+}
+
+function terminateCall() {
+    fetch(`${API}/api/call/terminate${currentCallId ? '?call_id=' + currentCallId : ''}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                toast(`Call ended — ${data.duration}s, ${data.packets_sent} packets`, 'info');
+            }
+            stopCallPolling();
+            document.getElementById('btn-call').disabled = false;
+            document.getElementById('btn-hangup').disabled = true;
+            document.getElementById('call-status-text').textContent = 'Call Ended';
+            document.getElementById('call-icon').textContent = '📴';
+            // Do one final poll to get termination logs
+            setTimeout(() => pollCallStatus(), 500);
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function startCallPolling() {
+    if (callPollInterval) clearInterval(callPollInterval);
+    callPollInterval = setInterval(pollCallStatus, 500);
+}
+
+function stopCallPolling() {
+    if (callPollInterval) {
+        clearInterval(callPollInterval);
+        callPollInterval = null;
+    }
+}
+
+function pollCallStatus() {
+    const url = currentCallId ? `${API}/api/call/status?call_id=${currentCallId}` : `${API}/api/call/status`;
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            // Update logs
+            const logBox = document.getElementById('call-logs');
+            if (data.logs && data.logs.length > 0) {
+                const levelColors = {
+                    EMERGENCY: '#f87171', NAS: '#38bdf8', SMF: '#c084fc', UPF: '#4ade80',
+                    SIP: '#fbbf24', RTP: '#22d3ee', ACTIVE: '#4ade80', INFO: '#94a3b8', ERROR: '#f87171'
+                };
+                logBox.innerHTML = data.logs.map(l => {
+                    const c = levelColors[l.level] || '#94a3b8';
+                    return `<div style="margin-bottom:2px"><span style="color:#475569">${l.time}</span> <span style="color:${c}">${l.msg}</span></div>`;
+                }).join('');
+                logBox.scrollTop = logBox.scrollHeight;
+            }
+
+            // Update visualization
+            const status = data.status || 'idle';
+            const info = CALL_TYPE_INFO[data.call_type] || CALL_TYPE_INFO.voice;
+
+            if (status === 'active') {
+                document.getElementById('call-status-text').textContent = `${info.icon} ${data.profile?.name || 'Call'} — Active`;
+                document.getElementById('call-status-text').style.color = info.color;
+                document.getElementById('call-duration').textContent = (data.duration || 0) + 's';
+                document.getElementById('call-packets').textContent = (data.packets_sent || 0) + ' / ' + (data.packets_received || 0);
+                document.getElementById('call-bytes').textContent = Math.round((data.bytes_sent || 0) / 1024) + ' KB';
+                document.getElementById('call-qos').textContent = `5QI=${data.profile?.['5qi'] || '?'} / P${data.profile?.priority ?? '?'}`;
+
+                // Flow animation
+                document.getElementById('flow-caller').textContent = data.caller || '—';
+                document.getElementById('flow-callee').textContent = data.callee || '—';
+                document.getElementById('flow-arrow').textContent = (data.packets_sent || 0) % 2 === 0 ? '→ → → →' : '← ← ← ←';
+                document.getElementById('flow-arrow').style.color = info.color;
+                document.getElementById('call-mqtt-topic').textContent = `MQTT: ${data.profile?.mqtt_topic_prefix || 'call'}/${data.caller}/to/${data.callee}`;
+            } else if (status === 'connecting') {
+                document.getElementById('call-status-text').textContent = 'Connecting...';
+                document.getElementById('call-status-text').style.color = '#fbbf24';
+                document.getElementById('flow-arrow').textContent = '· · · · ·';
+                document.getElementById('flow-arrow').style.color = '#fbbf24';
+            } else if (status === 'terminated') {
+                document.getElementById('call-duration').textContent = (data.duration || 0) + 's';
+                document.getElementById('call-packets').textContent = (data.packets_sent || 0) + ' / ' + (data.packets_received || 0);
+                document.getElementById('call-bytes').textContent = Math.round((data.bytes_sent || 0) / 1024) + ' KB';
+                document.getElementById('flow-arrow').textContent = '✕';
+                document.getElementById('flow-arrow').style.color = '#f87171';
+                stopCallPolling();
+            }
+        })
+        .catch(() => {});
+}
+
+// Init call type info display (but dropdowns stay empty until load test)
+document.getElementById('call-type-info').innerHTML = '<span style="color:#64748b">⚠ Run Multi-UE Load Test above to register UEs, then call simulation will activate.</span>';
+
+function showTopology() {
+    if (!lastTestResult || !lastTestResult.registrations_detected) {
+        toast('No test results yet — run a load test first', 'error');
+        return;
+    }
+
+    const panel = document.getElementById('topo-panel');
+    panel.style.display = 'block';
+    panel.scrollIntoView({ behavior: 'smooth' });
+
+    const numUEs = lastTestResult.num_ues || 5;
+    const addrs = lastTestResult.pdu_addresses || [];
+    const regs = lastTestResult.registrations_detected || 0;
+
+    // Colors
+    const C = {
+        ue: '#38bdf8',      // UE nodes — sky blue
+        gnb: '#f59e0b',     // gNB — amber
+        core: '#a78bfa',    // Core NFs — purple
+        upf: '#4ade80',     // UPF — green
+        edge: '#fb923c',    // Edge/Data — orange
+        bg: '#0a0f1a',
+    };
+
+    // Build nodes
+    const nodes = [];
+    const edges = [];
+    let id = 1;
+
+    // -- UE nodes (arranged in arc on the left)
+    const ueIds = [];
+    for (let i = 0; i < numUEs; i++) {
+        const ip = addrs[i] || `10.45.0.${19 + i}`;
+        const ySpacing = 70;
+        const yStart = -(numUEs - 1) * ySpacing / 2;
+        const nid = id++;
+        ueIds.push(nid);
+        nodes.push({
+            id: nid,
+            label: `UE ${i + 1}  ⟶  ${ip}`,
+            x: -350,
+            y: yStart + i * ySpacing,
+            shape: 'image',
+            image: 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect x="8" y="2" width="24" height="36" rx="4" fill="${C.ue}" opacity="0.9"/><rect x="12" y="6" width="16" height="22" rx="2" fill="#0a0f1a"/><circle cx="20" cy="33" r="2" fill="#0a0f1a"/></svg>`),
+            size: 25,
+            font: { color: '#e2e8f0', size: 10, face: 'Segoe UI', align: 'left' },
+            fixed: true,
+        });
+    }
+
+    // -- PacketRusher gNB (hexagon shape — represents a cell tower)
+    const gnbId = id++;
+    nodes.push({
+        id: gnbId,
+        label: 'PacketRusher\ngNB',
+        x: -120,
+        y: 0,
+        shape: 'hexagon',
+        size: 35,
+        color: { background: '#78350f', border: C.gnb },
+        borderWidth: 3,
+        font: { color: '#fbbf24', size: 11, face: 'Segoe UI', multi: true, bold: true },
+        fixed: true,
+    });
+
+    // UE → gNB edges (Radio / N1)
+    for (const uid of ueIds) {
+        edges.push({ from: uid, to: gnbId, color: { color: C.ue, opacity: 0.5 }, width: 1, dashes: true, smooth: { type: 'curvedCW', roundness: 0.1 } });
+    }
+
+    // -- AMF
+    const amfId = id++;
+    nodes.push({
+        id: amfId, label: 'AMF\namf.open5gs.org', x: 80, y: -60,
+        shape: 'box', color: { background: '#1e1b4b', border: C.core }, borderWidth: 2,
+        font: { color: '#e2e8f0', size: 10, multi: true }, fixed: true,
+    });
+    edges.push({ from: gnbId, to: amfId, label: 'N2', color: { color: C.gnb }, width: 2, font: { color: '#94a3b8', size: 9 } });
+
+    // -- SMF
+    const smfId = id++;
+    nodes.push({
+        id: smfId, label: 'SMF1\nSlice 1', x: 230, y: -60,
+        shape: 'box', color: { background: '#1e1b4b', border: C.core }, borderWidth: 2,
+        font: { color: '#e2e8f0', size: 10, multi: true }, fixed: true,
+    });
+    edges.push({ from: amfId, to: smfId, label: 'N11', color: { color: C.core, opacity: 0.6 }, width: 1, font: { color: '#94a3b8', size: 9 } });
+
+    // -- UPF
+    const upfId = id++;
+    nodes.push({
+        id: upfId, label: 'UPF1\n10.33.33.6\n(ogstun)', x: 230, y: 60,
+        shape: 'box', color: { background: '#052e16', border: C.upf }, borderWidth: 2,
+        font: { color: '#e2e8f0', size: 10, multi: true }, fixed: true,
+    });
+    edges.push({ from: gnbId, to: upfId, label: 'N3 (GTP-U)', color: { color: '#22d3ee' }, width: 4, font: { color: '#22d3ee', size: 10, strokeWidth: 3, strokeColor: '#0a0f1a' } });
+    edges.push({ from: smfId, to: upfId, label: 'N4', color: { color: C.core, opacity: 0.6 }, width: 1, font: { color: '#94a3b8', size: 9 } });
+
+    // -- Auth chain (AUSF, UDM, UDR)
+    const authId = id++;
+    nodes.push({
+        id: authId, label: 'AUSF → UDM → UDR\nAuthentication Chain', x: 80, y: -140,
+        shape: 'box', color: { background: '#1e1b4b', border: '#6366f1' }, borderWidth: 1,
+        font: { color: '#a5b4fc', size: 9, multi: true }, fixed: true,
+    });
+    edges.push({ from: amfId, to: authId, color: { color: '#6366f1', opacity: 0.4 }, width: 1, dashes: [4, 4] });
+
+    // -- MongoDB
+    const dbId = id++;
+    nodes.push({
+        id: dbId, label: `MongoDB\n${numUEs} subscribers`, x: 230, y: -140,
+        shape: 'database', color: { background: '#1c1917', border: '#78716c' }, borderWidth: 1,
+        font: { color: '#a8a29e', size: 9, multi: true }, fixed: true,
+    });
+    edges.push({ from: authId, to: dbId, color: { color: '#78716c', opacity: 0.4 }, width: 1, dashes: [4, 4] });
+
+    // -- Internet / Data Network
+    const dnId = id++;
+    nodes.push({
+        id: dnId, label: 'Data Network\n(internet)', x: 400, y: 60,
+        shape: 'ellipse', color: { background: '#431407', border: C.edge }, borderWidth: 2,
+        font: { color: '#fed7aa', size: 10, multi: true }, fixed: true,
+    });
+    edges.push({ from: upfId, to: dnId, label: 'N6', color: { color: C.edge }, width: 2, font: { color: '#94a3b8', size: 9 } });
+
+    // -- Summary box
+    const summaryId = id++;
+    nodes.push({
+        id: summaryId,
+        label: `✅ ${regs}/${numUEs} Registered\n📡 ${addrs.length} PDU Sessions\n⏱ ${lastTestResult.elapsed_seconds || '?'}s total`,
+        x: 400, y: -60,
+        shape: 'box',
+        color: { background: '#0f2a1d', border: '#16a34a' },
+        borderWidth: 2,
+        font: { color: '#4ade80', size: 10, multi: true, align: 'left' },
+        fixed: true,
+    });
+
+    // Render
+    const container = document.getElementById('topo-canvas');
+    const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
+    const options = {
+        physics: false,
+        interaction: { dragNodes: false, zoomView: true, dragView: true },
+        edges: { smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.3 }, arrows: { to: { enabled: true, scaleFactor: 0.5 } } },
+    };
+    new vis.Network(container, data, options);
+
+    // Legend
+    document.getElementById('topo-legend').innerHTML = `
+        <span><span style="color:${C.ue}">■</span> UE (${numUEs})</span>
+        <span><span style="color:${C.gnb}">■</span> PacketRusher gNB</span>
+        <span><span style="color:${C.core}">■</span> Core NFs (AMF/SMF)</span>
+        <span><span style="color:#22d3ee">■</span> N3 GTP-U Tunnel</span>
+        <span><span style="color:${C.upf}">■</span> UPF</span>
+        <span><span style="color:${C.edge}">■</span> Data Network</span>
+    `;
+}
+</script>
+</body>
+</html>

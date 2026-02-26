@@ -3,21 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>5G Network Topology</title>
+    <title>Basic 5G Topology</title>
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; }
 
-        /* Top navbar */
         .navbar { background: #1e293b; border-bottom: 1px solid #334155; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
         .navbar h1 { font-size: 18px; font-weight: 600; color: #f8fafc; }
         .navbar h1 span { color: #38bdf8; }
-        .nav-links { display: flex; gap: 8px; }
-        .nav-links a { color: #94a3b8; text-decoration: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; transition: all 0.2s; }
-        .nav-links a:hover, .nav-links a.active { color: #f8fafc; background: #334155; }
+        .badge-basic { background: rgba(251,146,60,0.15); color: #fb923c; border: 1px solid rgba(251,146,60,0.3); padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; }
 
-        /* Main layout */
         .main { display: flex; height: calc(100vh - 49px); }
 
         /* Sidebar */
@@ -25,30 +21,19 @@
         .sidebar-section { padding: 16px; border-bottom: 1px solid #334155; }
         .sidebar-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 12px; }
 
-        /* Status summary */
         .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .status-card { background: #0f172a; border-radius: 8px; padding: 10px 12px; text-align: center; }
         .status-card .num { font-size: 22px; font-weight: 700; }
         .status-card .lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; margin-top: 2px; }
-        .status-card.running .num { color: #4ade80; }
-        .status-card.stopped .num { color: #f87171; }
-        .status-card.total .num { color: #38bdf8; }
-        .status-card.slices .num { color: #c084fc; }
 
-        /* Legend */
         .legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; cursor: pointer; opacity: 1; transition: opacity 0.2s; }
         .legend-item:hover { opacity: 0.8; }
         .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
 
-        /* Slice cards */
-        .slice-card { background: #0f172a; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; border-left: 3px solid; }
-        .slice-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-        .slice-card p { font-size: 11px; color: #94a3b8; line-height: 1.4; }
-        .slice-tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-top: 4px; }
-        .slice-tag.internet { background: #166534; color: #4ade80; }
-        .slice-tag.restricted { background: #7f1d1d; color: #f87171; }
+        .info-card { background: #0f172a; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; border-left: 3px solid; }
+        .info-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+        .info-card p { font-size: 11px; color: #94a3b8; line-height: 1.4; }
 
-        /* Node detail panel */
         .node-detail { display: none; }
         .node-detail.visible { display: block; }
         .node-detail-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -62,72 +47,73 @@
         .status-badge.stopped { background: #7f1d1d; color: #f87171; }
         .status-badge.unknown { background: #3f3f46; color: #a1a1aa; }
 
-        /* Graph container */
+        .filter-btn { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; margin: 2px; transition: all 0.2s; }
+        .filter-btn.active { border-color: #38bdf8; color: #38bdf8; background: rgba(56,189,248,0.1); }
+        .filter-btn:hover { border-color: #64748b; color: #e2e8f0; }
+        .filter-group { display: flex; flex-wrap: wrap; gap: 2px; }
+
         .graph-area { flex: 1; position: relative; }
         #topology-graph { width: 100%; height: 100%; }
 
-        /* Toolbar overlay */
         .toolbar { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; z-index: 10; }
         .toolbar button { background: #1e293b; border: 1px solid #334155; color: #e2e8f0; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
         .toolbar button:hover { background: #334155; border-color: #475569; }
 
-        /* Loading overlay */
         .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #0f172a; z-index: 20; }
         .loading.hidden { display: none; }
         .loading-text { color: #94a3b8; font-size: 14px; }
         .spinner { width: 24px; height: 24px; border: 3px solid #334155; border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 12px; display: inline-block; vertical-align: middle; }
         @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Filter buttons */
-        .filter-btn { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; margin: 2px; transition: all 0.2s; }
-        .filter-btn.active { border-color: #38bdf8; color: #38bdf8; background: rgba(56,189,248,0.1); }
-        .filter-btn:hover { border-color: #64748b; color: #e2e8f0; }
-        .filter-group { display: flex; flex-wrap: wrap; gap: 2px; }
     </style>
 </head>
 <body>
 
-<!-- Navbar -->
 <div class="navbar">
-    <h1>📡 <span>5G</span> Network Framework</h1>
-    <div class="nav-links">
-        <a href="/" class="active">Topology</a>
-        <a href="/control">Control</a>
-        <a href="/usecases">Use Cases</a>
-        <a href="/verify">Verify</a>
-        <a href="/monitoring">Monitor</a>
-        <a href="/loadtest">Load Test</a>
-    </div>
+    <h1>📡 <span>5G</span> Basic Network Topology</h1>
+    <span class="badge-basic">BASIC MODE • NO SLICING</span>
 </div>
 
-<!-- Main layout -->
 <div class="main">
-    <!-- Sidebar -->
     <div class="sidebar">
-        <!-- Status summary -->
         <div class="sidebar-section">
             <h3>Network Status</h3>
             <div class="status-grid">
-                <div class="status-card total"><div class="num" id="stat-total">-</div><div class="lbl">Total NFs</div></div>
-                <div class="status-card running"><div class="num" id="stat-running">-</div><div class="lbl">Running</div></div>
-                <div class="status-card stopped"><div class="num" id="stat-stopped">-</div><div class="lbl">Stopped</div></div>
-                <div class="status-card slices"><div class="num" id="stat-slices">3</div><div class="lbl">Slices</div></div>
+                <div class="status-card"><div class="num" style="color:#38bdf8" id="stat-total">-</div><div class="lbl">Total NFs</div></div>
+                <div class="status-card"><div class="num" style="color:#4ade80" id="stat-running">-</div><div class="lbl">Running</div></div>
+                <div class="status-card"><div class="num" style="color:#f87171" id="stat-stopped">-</div><div class="lbl">Stopped</div></div>
+                <div class="status-card"><div class="num" style="color:#fb923c" id="stat-ues">5</div><div class="lbl">UEs</div></div>
             </div>
         </div>
 
-        <!-- Layer filter -->
         <div class="sidebar-section">
             <h3>Filter by Layer</h3>
             <div class="filter-group" id="filter-group"></div>
         </div>
 
-        <!-- Slice info -->
         <div class="sidebar-section">
-            <h3>Network Slices</h3>
-            <div id="slice-list"></div>
+            <h3>Architecture</h3>
+            <div class="info-card" style="border-color:#2563EB">
+                <h4 style="color:#60a5fa">5G Core</h4>
+                <p>Single AMF/SMF/UPF — no network slicing. All UEs share one PDU session path. Network: <code style="font-size:10px;color:#38bdf8">10.33.33.0/24</code></p>
+            </div>
+            <div class="info-card" style="border-color:#16A34A">
+                <h4 style="color:#4ade80">RAN</h4>
+                <p>Single gNodeB — all 5 UEs (3 IoT + 2 Vehicle) connect through this base station.</p>
+            </div>
+            <div class="info-card" style="border-color:#0891B2">
+                <h4 style="color:#22d3ee">IoT UEs (3)</h4>
+                <p>Temp/Humidity, Air Quality, Pressure sensors → MQTT topics <code style="font-size:10px;color:#22d3ee">iot/ue-iot-*</code></p>
+            </div>
+            <div class="info-card" style="border-color:#EA580C">
+                <h4 style="color:#fb923c">Vehicle UEs (2)</h4>
+                <p>GPS + Speed + Alerts → HTTP to Edge → MQTT <code style="font-size:10px;color:#fb923c">veh/telemetry</code></p>
+            </div>
+            <div class="info-card" style="border-color:#DB2777">
+                <h4 style="color:#f472b6">Applications</h4>
+                <p>MQTT (:1883) + Edge Flask (:5000) + Node-RED Dashboard (:1880)</p>
+            </div>
         </div>
 
-        <!-- Node detail (shown on click) -->
         <div class="sidebar-section node-detail" id="node-detail">
             <h3>Selected Node</h3>
             <div class="node-detail-header">
@@ -138,10 +124,9 @@
         </div>
     </div>
 
-    <!-- Graph -->
     <div class="graph-area">
         <div class="loading" id="loading">
-            <div class="loading-text"><span class="spinner"></span>Loading 5G topology...</div>
+            <div class="loading-text"><span class="spinner"></span>Loading basic topology...</div>
         </div>
         <div class="toolbar">
             <button onclick="fitGraph()">⊞ Fit</button>
@@ -153,9 +138,7 @@
 </div>
 
 <script>
-// =============================================================================
-// State
-// =============================================================================
+(function() {
 let network = null;
 let allNodes = null;
 let allEdges = null;
@@ -165,111 +148,127 @@ let activeFilters = new Set();
 const API_BASE = window.location.origin;
 
 // =============================================================================
-// Category layout positions (logical 5G architecture layout)
+// Layout positions (logical 5G architecture layout)
 // =============================================================================
 const POSITIONS = {
-    // UEs on the far left
-    ue1: { x: -600, y: -150 }, ue2: { x: -600, y: 0 }, ue3: { x: -600, y: 150 },
-    // gNB
-    gnb: { x: -350, y: 0 },
-    // AMF (central)
-    amf: { x: -100, y: 0 },
-    // Core CP (top area)
-    nrf:  { x: 200, y: -250 },
-    ausf: { x: 0, y: -200 },
-    udm:  { x: 100, y: -200 },
-    udr:  { x: 200, y: -150 },
-    nssf: { x: -100, y: -200 },
-    bsf:  { x: 300, y: -250 },
-    pcf:  { x: 300, y: -100 },
-    // SMFs (middle right)
-    smf1: { x: 100, y: -80 },
-    smf2: { x: 100, y: 30 },
-    smf3: { x: 100, y: 140 },
-    // UPFs (right)
-    upf1: { x: 300, y: -80 },
-    upf2: { x: 300, y: 30 },
-    upf3: { x: 300, y: 140 },
-    // Apps (far right)
-    mqtt:    { x: 500, y: -80 },
-    nodered: { x: 500, y: 30 },
-    edge:    { x: 500, y: 140 },
-    // Infra (bottom)
-    db:    { x: 200, y: 250 },
-    webui: { x: 350, y: 250 },
+    // Simulators (far left)
+    'sim-iot-01': { x: -750, y: -200 },
+    'sim-iot-02': { x: -750, y: 0 },
+    'sim-iot-03': { x: -750, y: 200 },
+    'sim-veh-01': { x: -750, y: 420 },
+    'sim-veh-02': { x: -750, y: 570 },
+
+    // UEs
+    'ue-iot-01': { x: -500, y: -200 },
+    'ue-iot-02': { x: -500, y: 0 },
+    'ue-iot-03': { x: -500, y: 200 },
+    'ue-veh-01': { x: -500, y: 420 },
+    'ue-veh-02': { x: -500, y: 570 },
+
+    // gNodeB (center-left)
+    gnb: { x: -180, y: 150 },
+
+    // Core CP (center)
+    amf:  { x: 80,  y: 80 },
+    smf:  { x: 280, y: 80 },
+    upf:  { x: 280, y: 280 },
+
+    // SBA NFs (top)
+    nrf:  { x: 80,   y: -200 },
+    ausf: { x: -80,  y: -80 },
+    udm:  { x: 80,   y: -80 },
+    udr:  { x: 230,  y: -80 },
+    nssf: { x: -230, y: -80 },
+    bsf:  { x: -230, y: -200 },
+    pcf:  { x: 380,  y: -80 },
+
+    // Infrastructure (top-right)
+    db:    { x: 380,  y: -230 },
+    webui: { x: 530,  y: -230 },
+
+    // Application Layer (right)
+    mqtt:    { x: 530, y: 120 },
+    edge:    { x: 530, y: 320 },
+    nodered: { x: 530, y: 520 },
+};
+
+const CAT_COLORS = {
+    core_cp:   '#2563EB',
+    core_up:   '#7C3AED',
+    ran:       '#16A34A',
+    iot:       '#0891B2',
+    vehicle:   '#EA580C',
+    simulator: '#6B7280',
+    apps:      '#DB2777',
+    infra:     '#92400E',
+};
+
+const EDGE_COLORS = {
+    'SBI':        '#475569',
+    'NGAP (N2)':  '#3b82f6',
+    'PFCP (N4)':  '#8b5cf6',
+    'GTP-U (N3)': '#22c55e',
+    'NR-Uu':      '#06b6d4',
+    'container':  '#4b5563',
+    'IP':         '#a855f7',
+    'MQTT':       '#ec4899',
+    'MongoDB':    '#92400E',
 };
 
 // =============================================================================
-// Build vis.js graph
+// Build Graph from API data
 // =============================================================================
 function buildGraph(data) {
     topologyData = data;
-    const categories = data.categories;
 
     // Build filter buttons
     const filterGroup = document.getElementById('filter-group');
     filterGroup.innerHTML = '<button class="filter-btn active" data-cat="all" onclick="toggleFilter(this)">All</button>';
-    for (const [catId, cat] of Object.entries(categories)) {
-        activeFilters.add(catId);
-        filterGroup.innerHTML += `<button class="filter-btn active" data-cat="${catId}" onclick="toggleFilter(this)">
-            <span style="color:${cat.color}">●</span> ${cat.name.split('–')[0].trim()}
-        </button>`;
-    }
+    Object.entries(data.categories).forEach(([cat, style]) => {
+        activeFilters.add(cat);
+        filterGroup.innerHTML += `<button class="filter-btn active" data-cat="${cat}" onclick="toggleFilter(this)" style="border-color:${style.color}50;color:${style.color}">${style.name}</button>`;
+    });
+    activeFilters.add('all');
 
-    // Build slice cards
-    const sliceList = document.getElementById('slice-list');
-    sliceList.innerHTML = '';
-    for (const [id, slice] of Object.entries(data.slices)) {
-        const cat = categories[id] || {};
-        sliceList.innerHTML += `
-            <div class="slice-card" style="border-color: ${cat.color || '#666'}">
-                <h4 style="color: ${cat.color || '#fff'}">${slice.name}</h4>
-                <p>SST: ${slice.sst} | SD: ${slice.sd}<br>Subnet: ${slice.subnet}</p>
-                <span class="slice-tag ${slice.internet_access ? 'internet' : 'restricted'}">
-                    ${slice.internet_access ? '🌐 Internet Access' : '🔒 Internal Only'}
-                </span>
-            </div>`;
-    }
-
-    // Build vis.js nodes
     const visNodes = data.nodes.map(n => {
-        const cat = categories[n.category] || {};
-        const ip = n.networks?.[0]?.ip || 'N/A';
-        const isRunning = n.running;
-        const borderColor = isRunning ? cat.color : '#475569';
-        const bgColor = isRunning ? cat.color : '#1e293b';
-        const fontColor = isRunning ? '#fff' : '#64748b';
+        const cat = data.categories[n.category] || {};
+        const color = cat.color || '#475569';
+        const pos = POSITIONS[n.id] || { x: 0, y: 0 };
+        const ip = (n.networks && n.networks[0]) ? n.networks[0].ip : '';
+
+        let labelText = n.label;
+        if (ip) labelText += `\n${ip}`;
 
         return {
             id: n.id,
-            label: `${n.label}\n${ip}`,
-            x: POSITIONS[n.id]?.x || 0,
-            y: POSITIONS[n.id]?.y || 0,
-            fixed: !physicsEnabled,
-            shape: n.id === 'gnb' ? 'diamond' : (n.category === 'infra' ? 'database' : 'box'),
+            label: labelText,
+            x: pos.x, y: pos.y,
+            fixed: true,
+            shape: cat.shape === 'diamond' ? 'diamond' : (cat.shape === 'database' ? 'database' : 'box'),
+            size: cat.shape === 'diamond' ? 25 : undefined,
             color: {
-                background: bgColor,
-                border: borderColor,
-                highlight: { background: cat.color, border: '#fff' },
-                hover: { background: cat.color, border: '#e2e8f0' },
+                background: n.running ? `${color}25` : '#1e293b',
+                border: n.running ? color : '#475569',
+                highlight: { background: `${color}40`, border: color },
+                hover: { background: `${color}30`, border: color },
             },
-            font: { color: fontColor, size: 12, face: 'Segoe UI, system-ui, sans-serif', multi: 'html' },
-            borderWidth: 2,
-            shadow: isRunning ? { enabled: true, color: cat.color + '40', x: 0, y: 0, size: 12 } : false,
-            margin: 8,
+            font: {
+                color: n.running ? '#e2e8f0' : '#64748b',
+                face: "'Segoe UI', system-ui, sans-serif",
+                size: 12,
+                multi: true,
+            },
+            borderWidth: n.running ? 2 : 1,
+            borderDashes: n.category === 'simulator' ? [4, 3] : false,
+            margin: 10,
+            shadow: n.running ? { enabled: true, color: `${color}30`, size: 10, x: 0, y: 3 } : false,
+            title: `${n.fullname}\n${n.role}\nStatus: ${n.status}${ip ? '\nIP: ' + ip : ''}`,
             category: n.category,
             _data: n,
         };
     });
 
-    // Build vis.js edges
-    const EDGE_COLORS = {
-        'SBI': '#64748b', 'NGAP (N2)': '#16A34A', 'NR-Uu': '#facc15',
-        'PFCP (N4)': '#f97316', 'GTP-U (N3)': '#38bdf8', 'IP': '#0891B2',
-        'MongoDB': '#6B7280', 'MQTT': '#0891B2',
-    };
-    const visEdges = data.edges.map((e, i) => ({
-        id: `e${i}`,
+    const visEdges = data.edges.map(e => ({
         from: e.from,
         to: e.to,
         label: e.protocol,
@@ -277,7 +276,7 @@ function buildGraph(data) {
         color: { color: EDGE_COLORS[e.protocol] || '#475569', opacity: 0.5, highlight: '#f8fafc', hover: '#94a3b8' },
         font: { color: '#64748b', size: 9, strokeWidth: 0, align: 'top' },
         width: e.protocol.includes('GTP') || e.protocol.includes('NR-Uu') ? 2.5 : 1,
-        dashes: e.protocol === 'NR-Uu' ? [8, 4] : false,
+        dashes: e.protocol === 'NR-Uu' ? [8, 4] : (e.protocol === 'container' ? [3, 3] : false),
         smooth: { type: 'curvedCW', roundness: 0.15 },
         arrows: { to: { enabled: true, scaleFactor: 0.5 } },
     }));
@@ -292,19 +291,20 @@ function buildGraph(data) {
         edges: { selectionWidth: 2 },
     });
 
-    // Update stats
+    // Stats
     const running = data.nodes.filter(n => n.running).length;
+    const stopped = data.nodes.filter(n => !n.running && n.status !== 'not found').length;
     document.getElementById('stat-total').textContent = data.nodes.length;
     document.getElementById('stat-running').textContent = running;
-    document.getElementById('stat-stopped').textContent = data.nodes.length - running;
+    document.getElementById('stat-stopped').textContent = stopped;
 
-    // Click handler: show node details
     network.on('click', function(params) {
-        if (params.nodes.length > 0) {
-            showNodeDetail(params.nodes[0]);
-        } else {
-            hideNodeDetail();
-        }
+        if (params.nodes.length > 0) showNodeDetail(params.nodes[0]);
+        else hideNodeDetail();
+    });
+
+    network.once('afterDrawing', () => {
+        network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
     });
 
     document.getElementById('loading').classList.add('hidden');
@@ -340,7 +340,6 @@ function showNodeDetail(nodeId) {
         });
     }
 
-    // Show connected edges
     const connected = topologyData.edges.filter(e => e.from === nodeId || e.to === nodeId);
     if (connected.length > 0) {
         html += `<div style="margin-top:12px;padding-top:8px;border-top:1px solid #334155"><span class="key" style="font-size:11px">CONNECTIONS (${connected.length})</span></div>`;
@@ -358,13 +357,11 @@ function hideNodeDetail() {
 }
 
 // =============================================================================
-// Filter by category
+// Filters
 // =============================================================================
 function toggleFilter(btn) {
     const cat = btn.dataset.cat;
-
     if (cat === 'all') {
-        // Toggle all
         const allActive = document.querySelectorAll('.filter-btn.active').length === document.querySelectorAll('.filter-btn').length;
         document.querySelectorAll('.filter-btn').forEach(b => {
             if (allActive) { b.classList.remove('active'); activeFilters.clear(); }
@@ -373,24 +370,20 @@ function toggleFilter(btn) {
     } else {
         btn.classList.toggle('active');
         if (activeFilters.has(cat)) activeFilters.delete(cat); else activeFilters.add(cat);
-        // Update "All" button
         const allBtn = document.querySelector('.filter-btn[data-cat="all"]');
         const nonAllBtns = document.querySelectorAll('.filter-btn:not([data-cat="all"])');
         const allActive = [...nonAllBtns].every(b => b.classList.contains('active'));
         allActive ? allBtn.classList.add('active') : allBtn.classList.remove('active');
     }
-
     applyFilters();
 }
 
 function applyFilters() {
     if (!allNodes || !topologyData) return;
-
     allNodes.forEach(node => {
         const show = activeFilters.has(node.category);
         allNodes.update({ id: node.id, hidden: !show });
     });
-
     allEdges.forEach(edge => {
         const fromNode = allNodes.get(edge.from);
         const toNode = allNodes.get(edge.to);
@@ -400,7 +393,7 @@ function applyFilters() {
 }
 
 // =============================================================================
-// Toolbar actions
+// Toolbar
 // =============================================================================
 function fitGraph() { if (network) network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } }); }
 
@@ -408,11 +401,7 @@ function togglePhysics() {
     physicsEnabled = !physicsEnabled;
     if (network) {
         network.setOptions({ physics: { enabled: physicsEnabled } });
-        if (!physicsEnabled) {
-            allNodes.forEach(n => { allNodes.update({ id: n.id, fixed: true }); });
-        } else {
-            allNodes.forEach(n => { allNodes.update({ id: n.id, fixed: false }); });
-        }
+        allNodes.forEach(n => { allNodes.update({ id: n.id, fixed: !physicsEnabled }); });
     }
 }
 
@@ -426,20 +415,24 @@ function refreshTopology() {
 // Fetch from API
 // =============================================================================
 function fetchTopology() {
-    fetch(`${API_BASE}/api/topology/full`)
+    fetch(`${API_BASE}/api/topology/basic`)
         .then(r => r.json())
         .then(data => buildGraph(data))
         .catch(err => {
             console.error('Topology fetch failed:', err);
             document.getElementById('loading').innerHTML =
-                '<div class="loading-text" style="color:#f87171">❌ Failed to connect to API.<br>Make sure the backend is running on port 8000.</div>';
+                '<div class="loading-text" style="color:#f87171">❌ Failed to connect to API.<br>Make sure the framework is running:<br><code style="color:#94a3b8">python -m uvicorn framework.app:app --port 8000</code></div>';
         });
 }
 
-// =============================================================================
-// Init
-// =============================================================================
+// Expose to window for onclick handlers
+window.toggleFilter = toggleFilter;
+window.fitGraph = fitGraph;
+window.togglePhysics = togglePhysics;
+window.refreshTopology = refreshTopology;
+
 fetchTopology();
+})();
 </script>
 </body>
 </html>

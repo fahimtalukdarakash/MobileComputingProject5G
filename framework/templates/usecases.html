@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5G Framework – Use Cases</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+        .navbar { background: #1e293b; border-bottom: 1px solid #334155; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+        .navbar h1 { font-size: 18px; font-weight: 600; color: #f8fafc; }
+        .navbar h1 span { color: #38bdf8; }
+        .nav-links { display: flex; gap: 8px; }
+        .nav-links a { color: #94a3b8; text-decoration: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; transition: all 0.2s; }
+        .nav-links a:hover, .nav-links a.active { color: #f8fafc; background: #334155; }
+
+        .main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+
+        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .top-bar h2 { font-size: 16px; color: #f8fafc; }
+        .btn { padding: 8px 16px; border: 1px solid #334155; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-start { background: #166534; color: #4ade80; border-color: #16a34a; }
+        .btn-start:hover:not(:disabled) { background: #15803d; }
+        .btn-stop { background: #7f1d1d; color: #f87171; border-color: #dc2626; }
+        .btn-stop:hover:not(:disabled) { background: #991b1b; }
+        .btn-default { background: #1e293b; color: #e2e8f0; }
+        .btn-default:hover:not(:disabled) { background: #334155; }
+        .btn-sm { padding: 5px 12px; font-size: 11px; }
+        .btn-group { display: flex; gap: 8px; }
+
+        /* Slice group headers */
+        .slice-group { margin-bottom: 24px; }
+        .slice-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #334155; }
+        .slice-dot { width: 10px; height: 10px; border-radius: 3px; }
+        .slice-header h3 { font-size: 14px; font-weight: 600; color: #f8fafc; }
+        .slice-header .tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+        .tag-internet { background: #166534; color: #4ade80; }
+        .tag-restricted { background: #7f1d1d; color: #f87171; }
+
+        /* Use case cards */
+        .uc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; }
+        .uc-card { background: #1e293b; border-radius: 10px; border: 1px solid #334155; overflow: hidden; transition: border-color 0.2s; }
+        .uc-card:hover { border-color: #475569; }
+        .uc-card.running { border-color: #16a34a; }
+
+        .uc-top { padding: 16px 18px; display: flex; align-items: flex-start; gap: 14px; }
+        .uc-icon { font-size: 28px; flex-shrink: 0; margin-top: 2px; }
+        .uc-info { flex: 1; }
+        .uc-info h4 { font-size: 14px; font-weight: 600; color: #f8fafc; margin-bottom: 4px; }
+        .uc-info p { font-size: 12px; color: #94a3b8; line-height: 1.5; }
+
+        .uc-meta { padding: 0 18px 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+        .meta-tag { font-size: 10px; padding: 3px 8px; border-radius: 4px; background: #0f172a; color: #64748b; border: 1px solid #334155; }
+        .meta-tag.protocol { color: #38bdf8; border-color: #1e3a5f; }
+        .meta-tag.topic { color: #a78bfa; border-color: #3b0764; }
+        .meta-tag.ue { color: #fbbf24; border-color: #713f12; }
+
+        .uc-status { padding: 10px 18px; background: #0f172a; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #334155; }
+        .status-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .status-dot.running { background: #4ade80; box-shadow: 0 0 6px #4ade8040; }
+        .status-dot.stopped { background: #64748b; }
+
+        /* Log viewer modal */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; }
+        .modal-overlay.visible { display: flex; }
+        .modal { background: #1e293b; border-radius: 12px; border: 1px solid #334155; width: 700px; max-height: 80vh; display: flex; flex-direction: column; }
+        .modal-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; }
+        .modal-header h3 { font-size: 14px; color: #f8fafc; }
+        .modal-close { background: none; border: none; color: #64748b; font-size: 18px; cursor: pointer; }
+        .modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; white-space: pre-wrap; color: #94a3b8; background: #020617; }
+
+        /* Summary bar */
+        .summary-bar { display: flex; gap: 16px; margin-bottom: 20px; }
+        .summary-stat { background: #1e293b; border-radius: 10px; padding: 14px 20px; flex: 1; text-align: center; border: 1px solid #334155; }
+        .summary-stat .num { font-size: 24px; font-weight: 700; }
+        .summary-stat .lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; margin-top: 2px; }
+        .summary-stat.total .num { color: #38bdf8; }
+        .summary-stat.running .num { color: #4ade80; }
+        .summary-stat.stopped .num { color: #64748b; }
+
+        .spinner-sm { width: 14px; height: 14px; border: 2px solid #334155; border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; vertical-align: middle; margin-right: 4px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+        .toast { padding: 10px 16px; border-radius: 8px; font-size: 12px; animation: slideIn 0.3s ease; max-width: 350px; }
+        .toast.success { background: #166534; color: #4ade80; border: 1px solid #16a34a; }
+        .toast.error { background: #7f1d1d; color: #f87171; border: 1px solid #dc2626; }
+        .toast.info { background: #1e3a5f; color: #38bdf8; border: 1px solid #0ea5e9; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* Data fields list */
+        .data-fields { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+        .data-field { font-size: 10px; color: #94a3b8; background: #1e293b; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h1>📡 <span>5G</span> Network Framework</h1>
+    <div class="nav-links">
+        <a href="/">Topology</a>
+        <a href="/control">Control</a>
+        <a href="/usecases" class="active">Use Cases</a>
+        <a href="/verify">Verify</a>
+        <a href="/monitoring">Monitor</a>
+        <a href="/loadtest">Load Test</a>
+    </div>
+</div>
+
+<div class="main">
+    <div class="top-bar">
+        <h2>📦 Use Cases</h2>
+        <div class="btn-group">
+            <button class="btn btn-start" onclick="startAll()">▶ Start All</button>
+            <button class="btn btn-stop" onclick="stopAll()">■ Stop All</button>
+            <button class="btn btn-default" onclick="refresh()">⟳ Refresh</button>
+        </div>
+    </div>
+
+    <div class="summary-bar">
+        <div class="summary-stat total"><div class="num" id="sum-total">—</div><div class="lbl">Use Cases</div></div>
+        <div class="summary-stat running"><div class="num" id="sum-running">—</div><div class="lbl">Running</div></div>
+        <div class="summary-stat stopped"><div class="num" id="sum-stopped">—</div><div class="lbl">Stopped</div></div>
+    </div>
+
+    <div id="uc-container"></div>
+</div>
+
+<!-- Log Modal -->
+<div class="modal-overlay" id="log-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="log-modal-title">Logs</h3>
+            <button class="modal-close" onclick="closeLogModal()">✕</button>
+        </div>
+        <div class="modal-body" id="log-modal-body">Loading...</div>
+    </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const API = window.location.origin;
+const SLICE_COLORS = { slice1: '#EA580C', slice2: '#9333EA', slice3: '#DC2626' };
+const SLICE_ORDER = ['slice1', 'slice2', 'slice3'];
+
+function toast(msg, type = 'info') {
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+// =============================================================================
+// Render use cases grouped by slice
+// =============================================================================
+function renderUseCases(usecases) {
+    const total = usecases.length;
+    const running = usecases.filter(u => u.running).length;
+    document.getElementById('sum-total').textContent = total;
+    document.getElementById('sum-running').textContent = running;
+    document.getElementById('sum-stopped').textContent = total - running;
+
+    // Group by slice
+    const groups = {};
+    for (const uc of usecases) {
+        if (!groups[uc.slice_id]) groups[uc.slice_id] = { name: uc.slice, items: [] };
+        groups[uc.slice_id].items.push(uc);
+    }
+
+    const container = document.getElementById('uc-container');
+    let html = '';
+
+    for (const sliceId of SLICE_ORDER) {
+        const group = groups[sliceId];
+        if (!group) continue;
+
+        const isRestricted = sliceId === 'slice3';
+        html += `
+        <div class="slice-group">
+            <div class="slice-header">
+                <span class="slice-dot" style="background:${SLICE_COLORS[sliceId]}"></span>
+                <h3>${group.name}</h3>
+                <span class="tag ${isRestricted ? 'tag-restricted' : 'tag-internet'}">${isRestricted ? '🔒 Internal Only' : '🌐 Internet Access'}</span>
+            </div>
+            <div class="uc-grid">`;
+
+        for (const uc of group.items) {
+            const isRunning = uc.running;
+            html += `
+            <div class="uc-card ${isRunning ? 'running' : ''}" id="card-${uc.id}">
+                <div class="uc-top">
+                    <div class="uc-icon">${uc.icon}</div>
+                    <div class="uc-info">
+                        <h4>${uc.name}</h4>
+                        <p>${uc.description}</p>
+                        <div class="data-fields">
+                            ${uc.data_fields.map(f => `<span class="data-field">${f}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+                <div class="uc-meta">
+                    <span class="meta-tag ue">UE: ${uc.ue.toUpperCase()}</span>
+                    <span class="meta-tag protocol">${uc.protocol}</span>
+                    <span class="meta-tag topic">📨 ${uc.data_topic}</span>
+                </div>
+                <div class="uc-status">
+                    <div class="status-indicator">
+                        <span class="status-dot ${isRunning ? 'running' : 'stopped'}"></span>
+                        <span>${isRunning ? 'Running' : 'Stopped'}</span>
+                    </div>
+                    <div class="btn-group">
+                        ${isRunning
+                            ? `<button class="btn btn-stop btn-sm" onclick="stopUC('${uc.id}')">■ Stop</button>`
+                            : `<button class="btn btn-start btn-sm" onclick="startUC('${uc.id}')">▶ Start</button>`
+                        }
+                        <button class="btn btn-default btn-sm" onclick="viewLogs('${uc.id}','${uc.name}')">📋 Logs</button>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        html += '</div></div>';
+    }
+
+    container.innerHTML = html;
+}
+
+// =============================================================================
+// API calls
+// =============================================================================
+function refresh() {
+    fetch(`${API}/api/usecases`)
+        .then(r => r.json())
+        .then(data => renderUseCases(data.usecases || []))
+        .catch(e => toast('Failed to load: ' + e, 'error'));
+}
+
+function startUC(id) {
+    toast(`Starting ${id}...`, 'info');
+    fetch(`${API}/api/usecases/start/${id}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            toast(data.message || 'Started', data.success ? 'success' : 'error');
+            setTimeout(refresh, 2000);
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function stopUC(id) {
+    toast(`Stopping ${id}...`, 'info');
+    fetch(`${API}/api/usecases/stop/${id}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            toast(data.message || 'Stopped', data.success ? 'success' : 'error');
+            setTimeout(refresh, 1500);
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function startAll() {
+    toast('Starting all use cases...', 'info');
+    fetch(`${API}/api/usecases/start-all`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            toast(data.message || 'All started', data.success ? 'success' : 'error');
+            setTimeout(refresh, 3000);
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function stopAll() {
+    toast('Stopping all use cases...', 'info');
+    fetch(`${API}/api/usecases/stop-all`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            toast(data.message || 'All stopped', data.success ? 'success' : 'error');
+            setTimeout(refresh, 1500);
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function viewLogs(id, name) {
+    document.getElementById('log-modal').classList.add('visible');
+    document.getElementById('log-modal-title').textContent = `Logs: ${name}`;
+    document.getElementById('log-modal-body').textContent = 'Loading...';
+
+    fetch(`${API}/api/usecases/logs/${id}`)
+        .then(r => r.json())
+        .then(data => {
+            const logs = data.logs || {};
+            let text = '';
+            for (const [svc, log] of Object.entries(logs)) {
+                text += `=== ${svc} ===\n${log}\n\n`;
+            }
+            document.getElementById('log-modal-body').textContent = text || 'No logs available (container may not have started yet).';
+        })
+        .catch(e => { document.getElementById('log-modal-body').textContent = `Error: ${e}`; });
+}
+
+function closeLogModal() {
+    document.getElementById('log-modal').classList.remove('visible');
+}
+
+// Close modal on overlay click
+document.getElementById('log-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeLogModal();
+});
+
+// =============================================================================
+// Init
+// =============================================================================
+refresh();
+setInterval(refresh, 8000);
+</script>
+</body>
+</html>

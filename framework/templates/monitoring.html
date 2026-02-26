@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5G Framework – Monitoring</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+        .navbar { background: #1e293b; border-bottom: 1px solid #334155; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+        .navbar h1 { font-size: 18px; font-weight: 600; color: #f8fafc; }
+        .navbar h1 span { color: #38bdf8; }
+        .nav-links { display: flex; gap: 8px; }
+        .nav-links a { color: #94a3b8; text-decoration: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; transition: all 0.2s; }
+        .nav-links a:hover, .nav-links a.active { color: #f8fafc; background: #334155; }
+
+        .main { padding: 20px 24px; max-width: 1500px; margin: 0 auto; }
+
+        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .top-bar h2 { font-size: 16px; color: #f8fafc; }
+        .refresh-info { font-size: 11px; color: #64748b; }
+        .btn { padding: 6px 14px; border: 1px solid #334155; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; background: #1e293b; color: #e2e8f0; }
+        .btn:hover { background: #334155; }
+        .btn.active { border-color: #38bdf8; color: #38bdf8; }
+
+        /* Summary cards */
+        .summary-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+        .summary-card { background: #1e293b; border-radius: 10px; padding: 16px; text-align: center; border: 1px solid #334155; }
+        .summary-card .num { font-size: 26px; font-weight: 700; }
+        .summary-card .lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; margin-top: 2px; letter-spacing: 0.5px; }
+        .c-blue .num { color: #38bdf8; }
+        .c-green .num { color: #4ade80; }
+        .c-orange .num { color: #fb923c; }
+        .c-purple .num { color: #c084fc; }
+        .c-cyan .num { color: #22d3ee; }
+
+        /* Grid layout */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+        /* Panel */
+        .panel { background: #1e293b; border-radius: 10px; border: 1px solid #334155; overflow: hidden; }
+        .panel-header { padding: 12px 16px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
+        .panel-header h3 { font-size: 13px; font-weight: 600; color: #f8fafc; }
+        .panel-body { padding: 16px; }
+        .panel-body.no-pad { padding: 0; }
+
+        /* Charts */
+        .chart-container { position: relative; height: 200px; }
+
+        /* Resource table */
+        .res-table { width: 100%; font-size: 11px; border-collapse: collapse; }
+        .res-table th { text-align: left; padding: 8px 12px; color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; background: #0f172a; border-bottom: 1px solid #334155; position: sticky; top: 0; }
+        .res-table td { padding: 6px 12px; border-bottom: 1px solid #0f172a; }
+        .res-table tr:hover { background: #0f172a; }
+        .res-table .name { font-weight: 600; color: #f8fafc; font-family: 'JetBrains Mono', monospace; }
+
+        /* Progress bars */
+        .bar-wrap { width: 80px; height: 6px; background: #334155; border-radius: 3px; display: inline-block; vertical-align: middle; margin-left: 6px; }
+        .bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+        .bar-fill.low { background: #4ade80; }
+        .bar-fill.mid { background: #fbbf24; }
+        .bar-fill.high { background: #f87171; }
+
+        /* MQTT stream */
+        .mqtt-stream { max-height: 340px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+        .mqtt-msg { padding: 6px 12px; border-bottom: 1px solid #0f172a; display: flex; gap: 10px; }
+        .mqtt-msg:hover { background: #0f172a; }
+        .mqtt-time { color: #64748b; flex-shrink: 0; width: 60px; }
+        .mqtt-topic { color: #38bdf8; flex-shrink: 0; min-width: 120px; }
+        .mqtt-payload { color: #94a3b8; word-break: break-all; }
+
+        /* UE metrics */
+        .ue-card { background: #0f172a; border-radius: 8px; padding: 14px; text-align: center; }
+        .ue-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+        .ue-stat-row { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; }
+        .ue-stat-row .key { color: #64748b; }
+        .ue-stat-row .val { color: #e2e8f0; font-family: 'JetBrains Mono', monospace; }
+
+        .scrollable { max-height: 340px; overflow-y: auto; }
+
+        /* Pulse dot */
+        .pulse { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h1>📡 <span>5G</span> Network Framework</h1>
+    <div class="nav-links">
+        <a href="/">Topology</a>
+        <a href="/control">Control</a>
+        <a href="/usecases">Use Cases</a>
+        <a href="/verify">Verify</a>
+        <a href="/monitoring" class="active">Monitor</a>
+        <a href="/loadtest">Load Test</a>
+    </div>
+</div>
+
+<div class="main">
+    <div class="top-bar">
+        <h2><span class="pulse"></span>Live Monitoring</h2>
+        <div style="display:flex;align-items:center;gap:12px">
+            <span class="refresh-info" id="last-update">—</span>
+            <button class="btn" id="btn-pause" onclick="togglePause()">⏸ Pause</button>
+        </div>
+    </div>
+
+    <!-- Summary row -->
+    <div class="summary-row">
+        <div class="summary-card c-blue"><div class="num" id="s-containers">—</div><div class="lbl">Containers</div></div>
+        <div class="summary-card c-orange"><div class="num" id="s-cpu">—</div><div class="lbl">Total CPU %</div></div>
+        <div class="summary-card c-purple"><div class="num" id="s-mem">—</div><div class="lbl">Total Memory (MB)</div></div>
+        <div class="summary-card c-green"><div class="num" id="s-ues">—</div><div class="lbl">Active UE Tunnels</div></div>
+        <div class="summary-card c-cyan"><div class="num" id="s-mqtt">—</div><div class="lbl">MQTT Messages</div></div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="grid-2">
+        <div class="panel">
+            <div class="panel-header"><h3>📊 CPU Usage by Container</h3></div>
+            <div class="panel-body"><div class="chart-container"><canvas id="chart-cpu"></canvas></div></div>
+        </div>
+        <div class="panel">
+            <div class="panel-header"><h3>📊 Memory Usage by Container</h3></div>
+            <div class="panel-body"><div class="chart-container"><canvas id="chart-mem"></canvas></div></div>
+        </div>
+    </div>
+
+    <!-- UE Metrics + MQTT row -->
+    <div class="grid-2">
+        <!-- UE Tunnel Metrics -->
+        <div class="panel">
+            <div class="panel-header"><h3>📱 UE Tunnel Metrics</h3></div>
+            <div class="panel-body">
+                <div class="grid-3" id="ue-cards"></div>
+            </div>
+        </div>
+
+        <!-- MQTT Live Stream -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3>📨 MQTT Live Stream</h3>
+                <button class="btn" style="padding:3px 10px;font-size:10px" onclick="fetchMQTT()">⟳ Refresh</button>
+            </div>
+            <div class="panel-body no-pad">
+                <div class="mqtt-stream" id="mqtt-stream">
+                    <div class="mqtt-msg"><span style="color:#64748b">Waiting for messages...</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container Resource Table -->
+    <div class="panel" style="margin-bottom:20px">
+        <div class="panel-header"><h3>🖥 Container Resources</h3></div>
+        <div class="panel-body no-pad">
+            <div class="scrollable">
+                <table class="res-table">
+                    <thead><tr><th>Container</th><th>CPU %</th><th></th><th>Memory</th><th></th><th>Net RX</th><th>Net TX</th><th>PIDs</th></tr></thead>
+                    <tbody id="res-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = window.location.origin;
+let paused = false;
+let cpuChart = null, memChart = null;
+let cpuHistory = {};
+let memHistory = {};
+const MAX_POINTS = 20;
+const CHART_COLORS = [
+    '#38bdf8','#4ade80','#fb923c','#c084fc','#f87171','#22d3ee','#fbbf24',
+    '#a78bfa','#34d399','#f472b6','#2dd4bf','#e879f9','#84cc16','#60a5fa',
+    '#f97316','#a3e635','#818cf8','#fb7185','#14b8a6','#e9d5ff',
+    '#67e8f9','#bef264','#fca5a1','#93c5fd'
+];
+
+// =============================================================================
+// Charts
+// =============================================================================
+function initCharts() {
+    const opts = (title) => ({
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 300 },
+        plugins: { legend: { display: false }, title: { display: false } },
+        scales: {
+            x: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: '#1e293b' } },
+            y: { beginAtZero: true, ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: '#1e293b' } },
+        },
+    });
+
+    cpuChart = new Chart(document.getElementById('chart-cpu'), {
+        type: 'line',
+        data: { labels: [], datasets: [] },
+        options: opts('CPU %'),
+    });
+
+    memChart = new Chart(document.getElementById('chart-mem'), {
+        type: 'bar',
+        data: { labels: [], datasets: [{ label: 'Memory (MB)', data: [], backgroundColor: [] }] },
+        options: { ...opts('Memory'), plugins: { legend: { display: false } } },
+    });
+}
+
+function updateCpuChart(stats, timestamp) {
+    // Track top 8 CPU consumers
+    const sorted = [...stats].sort((a, b) => b.cpu_pct - a.cpu_pct).slice(0, 8);
+    const names = sorted.map(s => s.name);
+
+    // Add data point
+    for (const s of sorted) {
+        if (!cpuHistory[s.name]) cpuHistory[s.name] = [];
+        cpuHistory[s.name].push(s.cpu_pct);
+        if (cpuHistory[s.name].length > MAX_POINTS) cpuHistory[s.name].shift();
+    }
+
+    // Add timestamp label
+    if (!cpuChart.data.labels) cpuChart.data.labels = [];
+    cpuChart.data.labels.push(timestamp);
+    if (cpuChart.data.labels.length > MAX_POINTS) cpuChart.data.labels.shift();
+
+    // Build datasets
+    cpuChart.data.datasets = names.map((name, i) => ({
+        label: name,
+        data: cpuHistory[name] || [],
+        borderColor: CHART_COLORS[i % CHART_COLORS.length],
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.3,
+    }));
+
+    cpuChart.update('none');
+}
+
+function updateMemChart(stats) {
+    const sorted = [...stats].sort((a, b) => b.mem_used_mb - a.mem_used_mb);
+    memChart.data.labels = sorted.map(s => s.name);
+    memChart.data.datasets[0].data = sorted.map(s => s.mem_used_mb);
+    memChart.data.datasets[0].backgroundColor = sorted.map((_, i) => CHART_COLORS[i % CHART_COLORS.length] + '99');
+    memChart.update('none');
+}
+
+// =============================================================================
+// Resource table
+// =============================================================================
+function updateResourceTable(stats) {
+    const tbody = document.getElementById('res-tbody');
+    tbody.innerHTML = stats.map(s => {
+        const cpuClass = s.cpu_pct < 5 ? 'low' : s.cpu_pct < 30 ? 'mid' : 'high';
+        const memClass = s.mem_pct < 30 ? 'low' : s.mem_pct < 70 ? 'mid' : 'high';
+        return `<tr>
+            <td class="name">${s.name}</td>
+            <td>${s.cpu_pct.toFixed(1)}%</td>
+            <td><div class="bar-wrap"><div class="bar-fill ${cpuClass}" style="width:${Math.min(s.cpu_pct, 100)}%"></div></div></td>
+            <td>${s.mem_used_mb.toFixed(0)} MB</td>
+            <td><div class="bar-wrap"><div class="bar-fill ${memClass}" style="width:${Math.min(s.mem_pct, 100)}%"></div></div></td>
+            <td style="color:#4ade80">${s.net_rx_mb.toFixed(1)} MB</td>
+            <td style="color:#38bdf8">${s.net_tx_mb.toFixed(1)} MB</td>
+            <td>${s.pids}</td>
+        </tr>`;
+    }).join('');
+}
+
+// =============================================================================
+// UE metrics
+// =============================================================================
+function updateUECards(ues) {
+    const colors = { ue1: '#EA580C', ue2: '#9333EA', ue3: '#DC2626' };
+    const sliceNames = { ue1: 'Slice 1 – IoT', ue2: 'Slice 2 – Vehicle', ue3: 'Slice 3 – Restricted' };
+
+    document.getElementById('s-ues').textContent = ues.filter(u => u.has_tunnel).length;
+    document.getElementById('ue-cards').innerHTML = ues.map(u => {
+        const t = u.tunnel || {};
+        const rxKB = t.rx_bytes ? (t.rx_bytes / 1024).toFixed(1) : '0';
+        const txKB = t.tx_bytes ? (t.tx_bytes / 1024).toFixed(1) : '0';
+        return `
+        <div class="ue-card">
+            <h4 style="color:${colors[u.name]}">${u.name.toUpperCase()}</h4>
+            <div style="font-size:10px;color:#64748b;margin-bottom:8px">${sliceNames[u.name] || ''}</div>
+            <div class="ue-stat-row"><span class="key">IP</span><span class="val">${u.ip || 'N/A'}</span></div>
+            <div class="ue-stat-row"><span class="key">Tunnel</span><span class="val" style="color:${u.has_tunnel ? '#4ade80' : '#f87171'}">${u.has_tunnel ? 'Active' : 'Down'}</span></div>
+            <div class="ue-stat-row"><span class="key">RX</span><span class="val">${rxKB} KB / ${t.rx_packets || 0} pkts</span></div>
+            <div class="ue-stat-row"><span class="key">TX</span><span class="val">${txKB} KB / ${t.tx_packets || 0} pkts</span></div>
+        </div>`;
+    }).join('');
+}
+
+// =============================================================================
+// MQTT stream
+// =============================================================================
+function fetchMQTT() {
+    fetch(`${API}/api/monitoring/mqtt`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('s-mqtt').textContent = data.count || 0;
+            const container = document.getElementById('mqtt-stream');
+            if (data.messages && data.messages.length > 0) {
+                container.innerHTML = data.messages.map(m => {
+                    const payload = typeof m.payload === 'object' ? JSON.stringify(m.payload) : m.payload;
+                    return `<div class="mqtt-msg">
+                        <span class="mqtt-time">${m.timestamp}</span>
+                        <span class="mqtt-topic">${m.topic}</span>
+                        <span class="mqtt-payload">${payload}</span>
+                    </div>`;
+                }).join('');
+                container.scrollTop = container.scrollHeight;
+            }
+        })
+        .catch(() => {});
+}
+
+// =============================================================================
+// Main fetch loop
+// =============================================================================
+function fetchAll() {
+    if (paused) return;
+
+    fetch(`${API}/api/monitoring/dashboard`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('last-update').textContent = `Updated ${data.timestamp}`;
+
+            // Stats
+            const stats = data.stats || {};
+            const totals = stats.totals || {};
+            const containers = (stats.current || {}).containers || [];
+            const timestamp = (stats.current || {}).timestamp || '';
+
+            document.getElementById('s-containers').textContent = totals.containers || 0;
+            document.getElementById('s-cpu').textContent = (totals.cpu_pct || 0).toFixed(1) + '%';
+            document.getElementById('s-mem').textContent = (totals.mem_mb || 0).toFixed(0);
+
+            updateCpuChart(containers, timestamp);
+            updateMemChart(containers);
+            updateResourceTable(containers);
+
+            // UE metrics
+            updateUECards(data.ue_metrics || []);
+        })
+        .catch(e => console.error('Fetch failed:', e));
+
+    // MQTT separately (can be slower)
+    fetchMQTT();
+}
+
+function togglePause() {
+    paused = !paused;
+    const btn = document.getElementById('btn-pause');
+    btn.textContent = paused ? '▶ Resume' : '⏸ Pause';
+    btn.classList.toggle('active', paused);
+}
+
+// =============================================================================
+// Init
+// =============================================================================
+initCharts();
+fetchAll();
+setInterval(fetchAll, 5000);
+</script>
+</body>
+</html>

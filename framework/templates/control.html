@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5G Framework – Control</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+
+        .navbar { background: #1e293b; border-bottom: 1px solid #334155; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+        .navbar h1 { font-size: 18px; font-weight: 600; color: #f8fafc; }
+        .navbar h1 span { color: #38bdf8; }
+        .nav-links { display: flex; gap: 8px; }
+        .nav-links a { color: #94a3b8; text-decoration: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; transition: all 0.2s; }
+        .nav-links a:hover, .nav-links a.active { color: #f8fafc; background: #334155; }
+
+        .main { display: flex; height: calc(100vh - 49px); overflow: hidden; }
+
+        /* Left panel: containers + global controls */
+        .panel-left { width: 55%; border-right: 1px solid #334155; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* Right panel: logs + config */
+        .panel-right { width: 45%; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* Sections */
+        .section { padding: 16px; border-bottom: 1px solid #334155; }
+        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .section-header h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; }
+
+        /* Global action buttons */
+        .action-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn { padding: 8px 16px; border: 1px solid #334155; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-start { background: #166534; color: #4ade80; border-color: #16a34a; }
+        .btn-start:hover:not(:disabled) { background: #15803d; }
+        .btn-stop { background: #7f1d1d; color: #f87171; border-color: #dc2626; }
+        .btn-stop:hover:not(:disabled) { background: #991b1b; }
+        .btn-restart { background: #1e3a5f; color: #38bdf8; border-color: #0ea5e9; }
+        .btn-restart:hover:not(:disabled) { background: #1e40af; }
+        .btn-default { background: #1e293b; color: #e2e8f0; }
+        .btn-default:hover:not(:disabled) { background: #334155; }
+        .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+        /* Container table */
+        .table-wrap { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { text-align: left; padding: 8px 10px; background: #1e293b; color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 1; border-bottom: 1px solid #334155; }
+        td { padding: 7px 10px; border-bottom: 1px solid #1e293b; vertical-align: middle; }
+        tr:hover { background: #1e293b; }
+        .state-running { color: #4ade80; }
+        .state-exited { color: #f87171; }
+        .state-other { color: #fbbf24; }
+        .container-name { font-weight: 600; color: #f8fafc; font-family: 'JetBrains Mono', monospace; }
+        .btn-group { display: flex; gap: 4px; }
+
+        /* Tabs */
+        .tabs { display: flex; border-bottom: 1px solid #334155; }
+        .tab { padding: 10px 20px; font-size: 12px; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+        .tab:hover { color: #e2e8f0; }
+        .tab.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+        .tab-content { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+        .tab-content.active { display: flex; }
+
+        /* Log viewer */
+        .log-toolbar { padding: 10px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #334155; }
+        .log-toolbar select { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-family: inherit; }
+        .log-viewer { flex: 1; overflow-y: auto; padding: 12px 16px; font-family: 'JetBrains Mono', 'Cascadia Code', monospace; font-size: 11px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; background: #020617; color: #94a3b8; }
+
+        /* Config editor */
+        .config-toolbar { padding: 10px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #334155; flex-wrap: wrap; }
+        .config-toolbar select { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-family: inherit; }
+        .config-editor { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+        .config-editor textarea { flex: 1; background: #020617; color: #e2e8f0; border: none; padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; resize: none; outline: none; }
+        .config-status { padding: 8px 16px; font-size: 11px; border-top: 1px solid #334155; }
+        .config-status.success { color: #4ade80; background: #052e16; }
+        .config-status.error { color: #f87171; background: #450a0a; }
+
+        /* Network summary cards */
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px; }
+        .summary-card { background: #0f172a; border-radius: 8px; padding: 12px; border: 1px solid #334155; }
+        .summary-card h4 { font-size: 11px; color: #64748b; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
+        .summary-card .val { font-size: 18px; font-weight: 700; color: #f8fafc; font-family: 'JetBrains Mono', monospace; }
+        .summary-card .sub { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+        .slice-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+        .slice-dot { width: 8px; height: 8px; border-radius: 2px; }
+        .ue-row { font-size: 11px; color: #94a3b8; padding: 2px 0; font-family: 'JetBrains Mono', monospace; }
+
+        /* Toast notifications */
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+        .toast { padding: 10px 16px; border-radius: 8px; font-size: 12px; animation: slideIn 0.3s ease; max-width: 350px; }
+        .toast.success { background: #166534; color: #4ade80; border: 1px solid #16a34a; }
+        .toast.error { background: #7f1d1d; color: #f87171; border: 1px solid #dc2626; }
+        .toast.info { background: #1e3a5f; color: #38bdf8; border: 1px solid #0ea5e9; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* Spinner */
+        .spinner-sm { width: 14px; height: 14px; border: 2px solid #334155; border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h1>📡 <span>5G</span> Network Framework</h1>
+    <div class="nav-links">
+        <a href="/">Topology</a>
+        <a href="/control" class="active">Control</a>
+        <a href="/usecases">Use Cases</a>
+        <a href="/verify">Verify</a>
+        <a href="/monitoring">Monitor</a>
+        <a href="/loadtest">Load Test</a>
+    </div>
+</div>
+
+<div class="main">
+    <!-- LEFT PANEL: Containers -->
+    <div class="panel-left">
+        <div class="section">
+            <div class="section-header">
+                <h3>Global Controls</h3>
+                <span style="font-size:11px;color:#64748b" id="last-refresh">—</span>
+            </div>
+            <div class="action-bar">
+                <button class="btn btn-start" onclick="globalAction('up')" id="btn-up">▶ Start All</button>
+                <button class="btn btn-stop" onclick="globalAction('down')" id="btn-down">■ Stop All</button>
+                <button class="btn btn-default" onclick="refreshContainers()">⟳ Refresh</button>
+            </div>
+        </div>
+        <div style="padding: 8px 16px 0;">
+            <div class="section-header" style="margin-bottom:4px">
+                <h3>Containers</h3>
+                <span style="font-size:11px;color:#64748b" id="container-count">—</span>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>State</th><th>Status</th><th>Image</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="container-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL: Tabs -->
+    <div class="panel-right">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('logs')">📋 Logs</div>
+            <div class="tab" onclick="switchTab('config')">⚙ Configuration</div>
+            <div class="tab" onclick="switchTab('summary')">📊 Network Summary</div>
+            <div class="tab" onclick="switchTab('transport')">🔧 Transport</div>
+            <div class="tab" onclick="switchTab('priority')">⚡ Priority QoS</div>
+            <div class="tab" onclick="switchTab('resilience')">🛡 Resilience</div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div class="tab-content active" id="tab-logs">
+            <div class="log-toolbar">
+                <select id="log-container-select" onchange="fetchLogs()">
+                    <option value="">Select container...</option>
+                </select>
+                <select id="log-lines-select" onchange="fetchLogs()">
+                    <option value="30">30 lines</option>
+                    <option value="50" selected>50 lines</option>
+                    <option value="100">100 lines</option>
+                    <option value="200">200 lines</option>
+                </select>
+                <button class="btn btn-default btn-sm" onclick="fetchLogs()">⟳ Refresh</button>
+            </div>
+            <div class="log-viewer" id="log-output">Select a container to view logs...</div>
+        </div>
+
+        <!-- Config Tab -->
+        <div class="tab-content" id="tab-config">
+            <div class="config-toolbar">
+                <select id="config-file-select" onchange="loadConfig()">
+                    <option value="">Select config file...</option>
+                </select>
+                <button class="btn btn-start btn-sm" onclick="saveConfig()" id="btn-save-config">💾 Save</button>
+                <button class="btn btn-default btn-sm" onclick="loadConfig()">⟳ Reload</button>
+            </div>
+            <div class="config-editor">
+                <textarea id="config-textarea" placeholder="Select a config file to edit..." spellcheck="false"></textarea>
+            </div>
+            <div class="config-status" id="config-status" style="display:none"></div>
+        </div>
+
+        <!-- Network Summary Tab -->
+        <div class="tab-content" id="tab-summary" style="overflow-y:auto">
+            <div class="summary-grid" id="summary-content">
+                <div class="summary-card"><h4>Loading...</h4></div>
+            </div>
+        </div>
+
+        <!-- Transport Control Tab -->
+        <div class="tab-content" id="tab-transport" style="overflow-y:auto;padding:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <h3 style="font-size:14px;color:#f8fafc">Transport Network Control (tc / iptables)</h3>
+                <div style="display:flex;gap:6px">
+                    <button class="action-btn" onclick="autoConfigureQoS()" style="background:#166534;color:#4ade80;border-color:#16a34a">⚡ Auto-Configure</button>
+                    <button class="action-btn" onclick="clearAllTC()" style="background:#7f1d1d;color:#f87171;border-color:#dc2626">✕ Clear All Rules</button>
+                </div>
+            </div>
+
+            <!-- Slice QoS Cards -->
+            <div id="transport-slices" style="display:flex;flex-direction:column;gap:12px"></div>
+        </div>
+
+        <!-- Priority QoS Tab -->
+        <div class="tab-content" id="tab-priority" style="overflow-y:auto;padding:16px">
+            <div style="margin-bottom:16px">
+                <h3 style="font-size:14px;color:#f8fafc;margin-bottom:4px">⚡ Priority-Based QoS — Shared Bottleneck Demo</h3>
+                <p style="font-size:11px;color:#64748b;margin-bottom:12px">
+                    Creates a bandwidth bottleneck on the Edge server where Slice 1 (IoT) and Slice 2 (Vehicle) compete simultaneously.
+                    Priority classes ensure IoT gets guaranteed bandwidth first.
+                </p>
+            </div>
+
+            <!-- Preset Selector -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+                <span style="font-size:12px;color:#94a3b8">Preset:</span>
+                <select id="priority-preset" style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:12px">
+                    <option value="iot-first">🟢 IoT Priority (Default)</option>
+                    <option value="equal">⚖ Equal Share (Baseline)</option>
+                    <option value="vehicle-first">🚗 Vehicle Priority</option>
+                    <option value="emergency">🚨 Emergency Override</option>
+                </select>
+                <span style="font-size:12px;color:#94a3b8">Duration:</span>
+                <input type="number" id="priority-duration" value="10" min="5" max="30" style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:12px;width:60px">
+                <span style="font-size:12px;color:#94a3b8">sec</span>
+                <button class="action-btn" onclick="runPriorityTest()" id="btn-priority-test" style="background:#166534;color:#4ade80;border-color:#16a34a">▶ Run Priority Test</button>
+                <button class="action-btn" onclick="clearPriority()" style="background:#7f1d1d;color:#f87171;border-color:#dc2626">✕ Clear</button>
+            </div>
+
+            <!-- How It Works -->
+            <div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:12px;margin-bottom:16px">
+                <p style="font-size:11px;color:#64748b;margin-bottom:8px">
+                    <strong style="color:#94a3b8">How it works:</strong> A total bandwidth cap (20 Mbps) is applied on the Edge server.
+                    Both UE1 (IoT) and UE2 (Vehicle) run iperf3 simultaneously, competing for the shared bandwidth.
+                    HTB priority classes determine who gets more.
+                </p>
+                <div id="priority-preset-info" style="font-size:11px;color:#94a3b8"></div>
+            </div>
+
+            <!-- Results -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+                <div style="background:#0f172a;border-radius:8px;padding:16px;text-align:center;border:1px solid #1e293b">
+                    <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">📡 Slice 1 — IoT (UE1)</div>
+                    <div style="font-size:28px;font-weight:700;color:#4ade80" id="prio-iot-mbps">—</div>
+                    <div style="font-size:10px;color:#64748b">Mbps</div>
+                    <div style="font-size:14px;font-weight:600;color:#4ade80;margin-top:4px" id="prio-iot-pct">—</div>
+                </div>
+                <div style="background:#0f172a;border-radius:8px;padding:16px;text-align:center;border:1px solid #1e293b">
+                    <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">🚗 Slice 2 — Vehicle (UE2)</div>
+                    <div style="font-size:28px;font-weight:700;color:#c084fc" id="prio-veh-mbps">—</div>
+                    <div style="font-size:10px;color:#64748b">Mbps</div>
+                    <div style="font-size:14px;font-weight:600;color:#c084fc;margin-top:4px" id="prio-veh-pct">—</div>
+                </div>
+                <div style="background:#0f172a;border-radius:8px;padding:16px;text-align:center;border:1px solid #1e293b">
+                    <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">📊 Total Shared</div>
+                    <div style="font-size:28px;font-weight:700;color:#fbbf24" id="prio-total-mbps">—</div>
+                    <div style="font-size:10px;color:#64748b">Mbps</div>
+                    <div style="font-size:14px;font-weight:600;color:#94a3b8;margin-top:4px" id="prio-preset-label">—</div>
+                </div>
+            </div>
+
+            <!-- Bar Chart -->
+            <div style="background:#0f172a;border-radius:8px;padding:16px;border:1px solid #1e293b;margin-bottom:16px">
+                <div style="font-size:11px;color:#64748b;margin-bottom:10px">Bandwidth Distribution</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                    <span style="font-size:10px;color:#4ade80;width:60px">IoT</span>
+                    <div style="flex:1;height:28px;background:#1e293b;border-radius:4px;overflow:hidden;position:relative">
+                        <div id="prio-bar-iot" style="height:100%;background:linear-gradient(90deg,#166534,#4ade80);width:0%;transition:width 0.8s ease;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px">
+                            <span style="font-size:10px;font-weight:600;color:#fff" id="prio-bar-iot-label"></span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:10px;color:#c084fc;width:60px">Vehicle</span>
+                    <div style="flex:1;height:28px;background:#1e293b;border-radius:4px;overflow:hidden;position:relative">
+                        <div id="prio-bar-veh" style="height:100%;background:linear-gradient(90deg,#581c87,#c084fc);width:0%;transition:width 0.8s ease;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px">
+                            <span style="font-size:10px;font-weight:600;color:#fff" id="prio-bar-veh-label"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div style="font-size:11px;color:#475569;text-align:center" id="prio-status">Select a preset and click "Run Priority Test"</div>
+        </div>
+
+        <!-- Resilience Testing Tab -->
+        <div class="tab-content" id="tab-resilience" style="overflow-y:auto;padding:16px">
+            <div style="margin-bottom:16px">
+                <h3 style="font-size:14px;color:#f8fafc;margin-bottom:4px">🛡 Slice Resilience Testing</h3>
+                <p style="font-size:11px;color:#64748b;margin-bottom:12px">
+                    Stop individual slices to verify network isolation — remaining slices continue operating independently.
+                    Proves that a failure in one slice does not affect others.
+                </p>
+            </div>
+
+            <!-- Slice Status Cards -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px" id="slice-cards">
+                <div class="slice-card" id="sc-slice1" style="background:#0f172a;border-radius:8px;padding:14px;border:1px solid #1e293b">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <span style="font-size:12px;font-weight:600;color:#4ade80">📡 Slice 1 — IoT</span>
+                        <span class="badge" id="sc-slice1-badge" style="font-size:9px;padding:2px 8px;border-radius:4px;background:#166534;color:#4ade80">●</span>
+                    </div>
+                    <div style="font-size:10px;color:#64748b;margin-bottom:8px">SMF1 + UPF1 + UE1</div>
+                    <div style="display:flex;gap:6px">
+                        <button class="action-btn" onclick="sliceAction('slice1','stop')" style="font-size:10px;padding:4px 10px;background:#7f1d1d;color:#f87171;border-color:#dc2626">⏹ Stop</button>
+                        <button class="action-btn" onclick="sliceAction('slice1','start')" style="font-size:10px;padding:4px 10px;background:#166534;color:#4ade80;border-color:#16a34a">▶ Start</button>
+                    </div>
+                </div>
+                <div class="slice-card" id="sc-slice2" style="background:#0f172a;border-radius:8px;padding:14px;border:1px solid #1e293b">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <span style="font-size:12px;font-weight:600;color:#c084fc">🚗 Slice 2 — Vehicle</span>
+                        <span class="badge" id="sc-slice2-badge" style="font-size:9px;padding:2px 8px;border-radius:4px;background:#581c87;color:#c084fc">●</span>
+                    </div>
+                    <div style="font-size:10px;color:#64748b;margin-bottom:8px">SMF2 + UPF2 + UE2</div>
+                    <div style="display:flex;gap:6px">
+                        <button class="action-btn" onclick="sliceAction('slice2','stop')" style="font-size:10px;padding:4px 10px;background:#7f1d1d;color:#f87171;border-color:#dc2626">⏹ Stop</button>
+                        <button class="action-btn" onclick="sliceAction('slice2','start')" style="font-size:10px;padding:4px 10px;background:#166534;color:#4ade80;border-color:#16a34a">▶ Start</button>
+                    </div>
+                </div>
+                <div class="slice-card" id="sc-slice3" style="background:#0f172a;border-radius:8px;padding:14px;border:1px solid #1e293b">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <span style="font-size:12px;font-weight:600;color:#fb923c">🔒 Slice 3 — Restricted</span>
+                        <span class="badge" id="sc-slice3-badge" style="font-size:9px;padding:2px 8px;border-radius:4px;background:#7c2d12;color:#fb923c">●</span>
+                    </div>
+                    <div style="font-size:10px;color:#64748b;margin-bottom:8px">SMF3 + UPF3 + UE3</div>
+                    <div style="display:flex;gap:6px">
+                        <button class="action-btn" onclick="sliceAction('slice3','stop')" style="font-size:10px;padding:4px 10px;background:#7f1d1d;color:#f87171;border-color:#dc2626">⏹ Stop</button>
+                        <button class="action-btn" onclick="sliceAction('slice3','start')" style="font-size:10px;padding:4px 10px;background:#166534;color:#4ade80;border-color:#16a34a">▶ Start</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Automated Resilience Test -->
+            <div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:16px;margin-bottom:16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                    <h4 style="font-size:13px;color:#f8fafc">🧪 Automated Resilience Test</h4>
+                    <button class="action-btn" onclick="runResilienceTest()" id="btn-resilience" style="background:#166534;color:#4ade80;border-color:#16a34a">▶ Run Test</button>
+                </div>
+                <p style="font-size:11px;color:#64748b;margin-bottom:10px">
+                    Stops Slice 1 (IoT) + Slice 2 (Vehicle), verifies Slice 3 (Restricted) still works, then restarts everything and confirms recovery.
+                </p>
+
+                <!-- Test Steps Timeline -->
+                <div id="resilience-timeline" style="margin-bottom:12px"></div>
+
+                <!-- Results Grid -->
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+                    <div style="background:#0a0f1a;border-radius:6px;padding:12px;text-align:center;border:1px solid #1e293b">
+                        <div style="font-size:10px;color:#64748b;margin-bottom:4px">SLICES STOPPED</div>
+                        <div style="font-size:20px;font-weight:700;color:#f87171" id="res-stopped">—</div>
+                    </div>
+                    <div style="background:#0a0f1a;border-radius:6px;padding:12px;text-align:center;border:1px solid #1e293b">
+                        <div style="font-size:10px;color:#64748b;margin-bottom:4px">TARGET SURVIVED</div>
+                        <div style="font-size:20px;font-weight:700" id="res-survived" style="color:#475569">—</div>
+                    </div>
+                    <div style="background:#0a0f1a;border-radius:6px;padding:12px;text-align:center;border:1px solid #1e293b">
+                        <div style="font-size:10px;color:#64748b;margin-bottom:4px">FALLBACK MQTT</div>
+                        <div style="font-size:20px;font-weight:700" id="res-fallback" style="color:#475569">—</div>
+                    </div>
+                    <div style="background:#0a0f1a;border-radius:6px;padding:12px;text-align:center;border:1px solid #1e293b">
+                        <div style="font-size:10px;color:#64748b;margin-bottom:4px">ALL RECOVERED</div>
+                        <div style="font-size:20px;font-weight:700" id="res-recovered" style="color:#475569">—</div>
+                    </div>
+                </div>
+
+                <div style="font-size:11px;color:#475569;text-align:center" id="res-status">Click "Run Test" to start the automated resilience test</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const API = window.location.origin;
+
+// =============================================================================
+// Toast notifications
+// =============================================================================
+function toast(msg, type = 'info') {
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+// =============================================================================
+// Tabs
+// =============================================================================
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(`tab-${name}`).classList.add('active');
+    document.querySelectorAll('.tab').forEach(t => {
+        if (t.textContent.toLowerCase().includes(name.substring(0,3))) t.classList.add('active');
+    });
+    if (name === 'summary') loadSummary();
+    if (name === 'transport') loadTransport();
+    if (name === 'resilience') refreshSliceStatus();
+}
+
+// =============================================================================
+// Container list
+// =============================================================================
+function refreshContainers() {
+    fetch(`${API}/api/control/containers`)
+        .then(r => r.json())
+        .then(data => {
+            const tbody = document.getElementById('container-tbody');
+            const containers = data.containers || [];
+            const running = containers.filter(c => c.state === 'running').length;
+            document.getElementById('container-count').textContent = `${running}/${containers.length} running`;
+            document.getElementById('last-refresh').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+
+            tbody.innerHTML = containers.map(c => {
+                const stateClass = c.state === 'running' ? 'state-running' :
+                                   c.state === 'exited' ? 'state-exited' : 'state-other';
+                const isRunning = c.state === 'running';
+                return `<tr>
+                    <td class="container-name">${c.name}</td>
+                    <td class="${stateClass}">${c.state}</td>
+                    <td style="font-size:11px;color:#94a3b8">${c.status}</td>
+                    <td style="font-size:10px;color:#64748b">${c.image.split('/').pop()}</td>
+                    <td>
+                        <div class="btn-group">
+                            ${isRunning
+                                ? `<button class="btn btn-stop btn-sm" onclick="containerAction('stop','${c.name}')">Stop</button>
+                                   <button class="btn btn-restart btn-sm" onclick="containerAction('restart','${c.name}')">Restart</button>`
+                                : `<button class="btn btn-start btn-sm" onclick="containerAction('start','${c.name}')">Start</button>`
+                            }
+                            <button class="btn btn-default btn-sm" onclick="viewLogs('${c.name}')">Logs</button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            // Update log dropdown
+            const logSelect = document.getElementById('log-container-select');
+            const current = logSelect.value;
+            logSelect.innerHTML = '<option value="">Select container...</option>' +
+                containers.map(c => `<option value="${c.name}" ${c.name === current ? 'selected' : ''}>${c.name}</option>`).join('');
+        })
+        .catch(e => toast('Failed to fetch containers: ' + e, 'error'));
+}
+
+function containerAction(action, name) {
+    toast(`${action}ing ${name}...`, 'info');
+    fetch(`${API}/api/control/${action}/${name}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            toast(data.message || `${name} ${action}ed`, data.success ? 'success' : 'error');
+            setTimeout(refreshContainers, 1000);
+        })
+        .catch(e => toast(`Failed: ${e}`, 'error'));
+}
+
+function globalAction(action) {
+    const btn = document.getElementById(`btn-${action}`);
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-sm"></span>${action === 'up' ? 'Starting...' : 'Stopping...'}`;
+    toast(`${action === 'up' ? 'Starting' : 'Stopping'} all services...`, 'info');
+
+    fetch(`${API}/api/control/${action}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            const coreOk = data.core?.success !== false;
+            const appsOk = data.apps?.success !== false;
+            toast(
+                `Core: ${coreOk ? '✓' : '✗'} | Apps: ${appsOk ? '✓' : '✗'}`,
+                coreOk && appsOk ? 'success' : 'error'
+            );
+            setTimeout(refreshContainers, 2000);
+        })
+        .catch(e => toast(`Failed: ${e}`, 'error'))
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = action === 'up' ? '▶ Start All' : '■ Stop All';
+        });
+}
+
+// =============================================================================
+// Logs
+// =============================================================================
+function viewLogs(name) {
+    document.getElementById('log-container-select').value = name;
+    switchTab('logs');
+    fetchLogs();
+}
+
+function fetchLogs() {
+    const name = document.getElementById('log-container-select').value;
+    if (!name) return;
+    const lines = document.getElementById('log-lines-select').value;
+    const output = document.getElementById('log-output');
+    output.textContent = 'Loading...';
+
+    fetch(`${API}/api/control/logs/${name}?lines=${lines}`)
+        .then(r => r.json())
+        .then(data => {
+            output.textContent = data.logs || 'No logs available.';
+            output.scrollTop = output.scrollHeight;
+        })
+        .catch(e => { output.textContent = `Error: ${e}`; });
+}
+
+// =============================================================================
+// Configuration
+// =============================================================================
+function loadConfigFiles() {
+    fetch(`${API}/api/config/files`)
+        .then(r => r.json())
+        .then(data => {
+            const select = document.getElementById('config-file-select');
+            select.innerHTML = '<option value="">Select config file...</option>' +
+                (data.files || []).map(f => `<option value="${f.name}">${f.name}</option>`).join('');
+        });
+}
+
+function loadConfig() {
+    const filename = document.getElementById('config-file-select').value;
+    if (!filename) return;
+    const textarea = document.getElementById('config-textarea');
+    const status = document.getElementById('config-status');
+    status.style.display = 'none';
+
+    fetch(`${API}/api/config/read/${filename}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                textarea.value = data.raw;
+            } else {
+                textarea.value = `Error: ${data.error}`;
+            }
+        })
+        .catch(e => { textarea.value = `Error: ${e}`; });
+}
+
+function saveConfig() {
+    const filename = document.getElementById('config-file-select').value;
+    if (!filename) { toast('Select a config file first', 'error'); return; }
+    const content = document.getElementById('config-textarea').value;
+    const status = document.getElementById('config-status');
+
+    fetch(`${API}/api/config/write`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, content }),
+    })
+        .then(r => r.json())
+        .then(data => {
+            status.style.display = 'block';
+            status.className = `config-status ${data.success ? 'success' : 'error'}`;
+            status.textContent = data.message || data.error || 'Unknown result';
+            toast(data.success ? `${filename} saved` : `Error: ${data.error}`, data.success ? 'success' : 'error');
+            setTimeout(() => { status.style.display = 'none'; }, 3000);
+        })
+        .catch(e => toast(`Save failed: ${e}`, 'error'));
+}
+
+// =============================================================================
+// Network Summary
+// =============================================================================
+function loadSummary() {
+    fetch(`${API}/api/config/summary`)
+        .then(r => r.json())
+        .then(data => {
+            const sliceColors = {'000001': '#EA580C', '000002': '#9333EA', '000003': '#DC2626'};
+            const sliceNames = {'000001': 'Slice 1 – IoT', '000002': 'Slice 2 – Vehicle', '000003': 'Slice 3 – Restricted'};
+
+            document.getElementById('summary-content').innerHTML = `
+                <div class="summary-card">
+                    <h4>PLMN Identity</h4>
+                    <div class="val">MCC: ${data.plmn?.mcc || '—'}  MNC: ${data.plmn?.mnc || '—'}</div>
+                    <div class="sub">Public Land Mobile Network</div>
+                </div>
+                <div class="summary-card">
+                    <h4>Active Slices</h4>
+                    <div class="val">${(data.slices || []).length}</div>
+                    <div class="sub">Network Slice Instances</div>
+                </div>
+                <div class="summary-card" style="grid-column: span 2">
+                    <h4>Slice Configuration</h4>
+                    ${(data.slices || []).map(s => `
+                        <div class="slice-row">
+                            <span class="slice-dot" style="background:${sliceColors[s.sd] || '#666'}"></span>
+                            <span style="color:#f8fafc;font-weight:500">${sliceNames[s.sd] || 'Slice'}</span>
+                            <span style="color:#64748b;font-size:11px">SST: ${s.sst} | SD: ${s.sd} ${s.subnet ? '| ' + s.subnet : ''}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="summary-card" style="grid-column: span 2">
+                    <h4>UE Assignments</h4>
+                    ${(data.ues || []).map(u => `
+                        <div class="ue-row">
+                            <span style="color:#f8fafc;font-weight:600">${u.name}</span>
+                            — ${u.supi} → SST:${u.sst} SD:${u.sd}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        })
+        .catch(e => {
+            document.getElementById('summary-content').innerHTML =
+                `<div class="summary-card"><h4>Error</h4><div class="sub">${e}</div></div>`;
+        });
+}
+
+// =============================================================================
+// Transport Network Control
+// =============================================================================
+const SLICE_COLORS_T = { slice1: '#EA580C', slice2: '#9333EA', slice3: '#DC2626' };
+const SLICE_NAMES = { slice1: 'Slice 1 – IoT (UPF1)', slice2: 'Slice 2 – Vehicle (UPF2)', slice3: 'Slice 3 – Restricted (UPF3)' };
+
+function loadTransport() {
+    fetch(`${API}/api/transport/status`)
+        .then(r => r.json())
+        .then(data => renderTransport(data))
+        .catch(e => toast('Failed to load transport status: ' + e, 'error'));
+}
+
+function renderTransport(data) {
+    const profiles = data.profiles || {};
+    const container = document.getElementById('transport-slices');
+
+    let html = '';
+    for (const [sliceId, info] of Object.entries(data.slices || {})) {
+        const color = SLICE_COLORS_T[sliceId] || '#666';
+        const name = SLICE_NAMES[sliceId] || sliceId;
+        const hasRules = info.active_params != null;
+        const params = info.active_params || {};
+
+        html += `
+        <div style="background:#1e293b;border-radius:8px;border:1px solid #334155;border-left:3px solid ${color};padding:14px 18px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <div>
+                    <h4 style="font-size:13px;color:${color};margin-bottom:2px">${name}</h4>
+                    <span style="font-size:11px;color:#64748b">${info.upf} / ${sliceId}</span>
+                </div>
+                <span style="font-size:11px;padding:3px 10px;border-radius:10px;background:${hasRules ? '#166534' : '#334155'};color:${hasRules ? '#4ade80' : '#94a3b8'}">
+                    ${hasRules ? '● Rules Active' : '○ No Rules'}
+                </span>
+            </div>
+
+            ${hasRules ? `
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px">
+                <div style="background:#0f172a;padding:8px;border-radius:6px;text-align:center">
+                    <div style="font-size:14px;font-weight:700;color:#38bdf8">${params.bandwidth_down || '—'}</div>
+                    <div style="font-size:9px;color:#64748b">↓ Download</div>
+                </div>
+                <div style="background:#0f172a;padding:8px;border-radius:6px;text-align:center">
+                    <div style="font-size:14px;font-weight:700;color:#4ade80">${params.bandwidth_up || '—'}</div>
+                    <div style="font-size:9px;color:#64748b">↑ Upload</div>
+                </div>
+                <div style="background:#0f172a;padding:8px;border-radius:6px;text-align:center">
+                    <div style="font-size:14px;font-weight:700;color:#fbbf24">${params.latency_ms || 0}ms</div>
+                    <div style="font-size:9px;color:#64748b">Latency</div>
+                </div>
+                <div style="background:#0f172a;padding:8px;border-radius:6px;text-align:center">
+                    <div style="font-size:14px;font-weight:700;color:#fb923c">${params.jitter_ms || 0}ms</div>
+                    <div style="font-size:9px;color:#64748b">Jitter</div>
+                </div>
+                <div style="background:#0f172a;padding:8px;border-radius:6px;text-align:center">
+                    <div style="font-size:14px;font-weight:700;color:#f87171">${params.loss_pct || 0}%</div>
+                    <div style="font-size:9px;color:#64748b">Loss</div>
+                </div>
+            </div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:8px">Profile: <strong style="color:#e2e8f0">${info.active_profile || 'Custom'}</strong> | Applied: ${info.applied_at || '—'}</div>
+            ` : ''}
+
+            <!-- Controls -->
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <select id="profile-${sliceId}" style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:5px 8px;border-radius:4px;font-size:11px">
+                    ${Object.entries(profiles).map(([pid, p]) =>
+                        `<option value="${pid}" ${info.active_profile === pid ? 'selected' : ''}>${p.name}</option>`
+                    ).join('')}
+                </select>
+                <button class="action-btn" onclick="applyProfile('${sliceId}')" style="background:#1e3a5f;color:#38bdf8;border-color:#0ea5e9;font-size:11px;padding:5px 10px">▶ Apply</button>
+                <button class="action-btn" onclick="clearSliceTC('${sliceId}')" style="background:#334155;color:#94a3b8;font-size:11px;padding:5px 10px">✕ Clear</button>
+
+                <!-- Custom values -->
+                <span style="color:#64748b;font-size:10px;margin-left:8px">Custom:</span>
+                <input type="text" id="bw-down-${sliceId}" placeholder="↓ e.g. 10mbit" style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:4px 6px;border-radius:4px;font-size:10px;width:80px">
+                <input type="text" id="bw-up-${sliceId}" placeholder="↑ e.g. 5mbit" style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:4px 6px;border-radius:4px;font-size:10px;width:80px">
+                <input type="number" id="lat-${sliceId}" placeholder="ms" style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:4px 6px;border-radius:4px;font-size:10px;width:50px">
+                <button class="action-btn" onclick="applyCustom('${sliceId}')" style="background:#713f12;color:#fbbf24;border-color:#f59e0b;font-size:10px;padding:4px 8px">Apply Custom</button>
+            </div>
+
+            <!-- Raw tc output (collapsible) -->
+            <details style="margin-top:8px">
+                <summary style="font-size:10px;color:#64748b;cursor:pointer">Show raw tc rules</summary>
+                <pre style="font-size:10px;color:#94a3b8;background:#0f172a;padding:8px;border-radius:4px;margin-top:4px;white-space:pre-wrap;max-height:100px;overflow-y:auto">${info.upf_qdisc || 'No rules'}\n${info.upf_classes || ''}</pre>
+            </details>
+        </div>`;
+    }
+
+    container.innerHTML = html;
+}
+
+function applyProfile(sliceId) {
+    const profile = document.getElementById(`profile-${sliceId}`).value;
+    toast(`Applying ${profile} to ${sliceId}...`, 'info');
+    fetch(`${API}/api/transport/apply/${sliceId}?profile=${profile}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            toast(data.message || 'Applied', data.success ? 'success' : 'error');
+            loadTransport();
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function applyCustom(sliceId) {
+    const bwDown = document.getElementById(`bw-down-${sliceId}`).value;
+    const bwUp = document.getElementById(`bw-up-${sliceId}`).value;
+    const lat = document.getElementById(`lat-${sliceId}`).value;
+
+    let params = [];
+    if (bwDown) params.push(`bandwidth_down=${bwDown}`);
+    if (bwUp) params.push(`bandwidth_up=${bwUp}`);
+    if (lat) params.push(`latency_ms=${lat}`);
+
+    if (params.length === 0) { toast('Enter at least one custom value', 'error'); return; }
+
+    toast(`Applying custom rules to ${sliceId}...`, 'info');
+    fetch(`${API}/api/transport/apply/${sliceId}?${params.join('&')}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            toast(data.message || 'Applied', data.success ? 'success' : 'error');
+            loadTransport();
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function clearSliceTC(sliceId) {
+    fetch(`${API}/api/transport/clear/${sliceId}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => { toast(data.message || 'Cleared', 'success'); loadTransport(); })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function clearAllTC() {
+    fetch(`${API}/api/transport/clear-all`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => { toast(data.message || 'Cleared', 'success'); loadTransport(); })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function autoConfigureQoS() {
+    toast('Auto-configuring QoS based on use cases...', 'info');
+    fetch(`${API}/api/transport/auto-configure`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            toast(data.message || 'Configured', data.success ? 'success' : 'error');
+            loadTransport();
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+
+// =============================================================================
+// Priority QoS
+// =============================================================================
+const PRESET_INFO = {
+    'iot-first': 'IoT: 14 Mbps guaranteed (ceil 18), prio 1 | Vehicle: 4 Mbps guaranteed (ceil 15), prio 2',
+    'equal': 'IoT: 10 Mbps guaranteed (ceil 15), prio 1 | Vehicle: 10 Mbps guaranteed (ceil 15), prio 1',
+    'vehicle-first': 'Vehicle: 14 Mbps guaranteed (ceil 18), prio 1 | IoT: 4 Mbps guaranteed (ceil 15), prio 2',
+    'emergency': 'IoT: 17 Mbps guaranteed (ceil 19), prio 0 | Vehicle: 1 Mbps guaranteed (ceil 5), prio 3',
+};
+
+document.getElementById('priority-preset').addEventListener('change', function() {
+    document.getElementById('priority-preset-info').textContent = PRESET_INFO[this.value] || '';
+});
+// Show default
+document.getElementById('priority-preset-info').textContent = PRESET_INFO['iot-first'];
+
+function pollPriorityTask(taskId, onDone) {
+    const poll = () => {
+        fetch(`${API}/api/priority/task/${taskId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'complete' || data.status === 'error') {
+                    onDone(data);
+                } else {
+                    setTimeout(poll, 2000);
+                }
+            })
+            .catch(e => onDone({status: 'error', error: '' + e}));
+    };
+    setTimeout(poll, 2000);
+}
+
+function runPriorityTest() {
+    const preset = document.getElementById('priority-preset').value;
+    const duration = parseInt(document.getElementById('priority-duration').value) || 10;
+    const btn = document.getElementById('btn-priority-test');
+    btn.disabled = true;
+    btn.textContent = '⏳ Running...';
+    document.getElementById('prio-status').textContent = `Running simultaneous iperf3 on UE1 + UE2 for ${duration}s with preset "${preset}"... please wait`;
+    document.getElementById('prio-iot-mbps').textContent = '...';
+    document.getElementById('prio-veh-mbps').textContent = '...';
+    document.getElementById('prio-total-mbps').textContent = '...';
+
+    fetch(`${API}/api/priority/test?duration=${duration}&preset=${preset}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.task_id) {
+                pollPriorityTask(data.task_id, (result) => {
+                    btn.disabled = false;
+                    btn.textContent = '▶ Run Priority Test';
+                    if (result.status === 'complete' && result.summary) {
+                        const s = result.summary;
+                        document.getElementById('prio-iot-mbps').textContent = s.iot_mbps;
+                        document.getElementById('prio-iot-pct').textContent = s.iot_share_pct + '% share';
+                        document.getElementById('prio-veh-mbps').textContent = s.vehicle_mbps;
+                        document.getElementById('prio-veh-pct').textContent = s.vehicle_share_pct + '% share';
+                        document.getElementById('prio-total-mbps').textContent = s.total_mbps;
+                        document.getElementById('prio-preset-label').textContent = result.preset_name || preset;
+                        // Animated bars
+                        const maxBar = Math.max(s.iot_mbps, s.vehicle_mbps, 1);
+                        document.getElementById('prio-bar-iot').style.width = Math.min(100, s.iot_share_pct) + '%';
+                        document.getElementById('prio-bar-iot-label').textContent = s.iot_mbps + ' Mbps';
+                        document.getElementById('prio-bar-veh').style.width = Math.min(100, s.vehicle_share_pct) + '%';
+                        document.getElementById('prio-bar-veh-label').textContent = s.vehicle_mbps + ' Mbps';
+                        document.getElementById('prio-status').textContent = `✅ Completed at ${result.timestamp || 'now'} — IoT got ${s.iot_share_pct}% vs Vehicle ${s.vehicle_share_pct}%`;
+                        toast(`Priority test done: IoT ${s.iot_mbps} Mbps vs Vehicle ${s.vehicle_mbps} Mbps`, 'success');
+                    } else {
+                        document.getElementById('prio-status').textContent = '❌ ' + (result.error || 'Test failed');
+                        toast(result.error || 'Priority test failed', 'error');
+                    }
+                });
+            } else {
+                btn.disabled = false;
+                btn.textContent = '▶ Run Priority Test';
+                toast(data.error || 'Failed to start', 'error');
+            }
+        })
+        .catch(e => {
+            btn.disabled = false;
+            btn.textContent = '▶ Run Priority Test';
+            toast('Error: ' + e, 'error');
+        });
+}
+
+function clearPriority() {
+    fetch(`${API}/api/priority/clear`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            toast(data.message || 'Cleared', data.success ? 'success' : 'error');
+            document.getElementById('prio-status').textContent = 'Priority rules cleared';
+            document.getElementById('prio-bar-iot').style.width = '0%';
+            document.getElementById('prio-bar-veh').style.width = '0%';
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+
+// =============================================================================
+// Resilience Testing
+// =============================================================================
+
+function refreshSliceStatus() {
+    fetch(`${API}/api/slice/status`)
+        .then(r => r.json())
+        .then(data => {
+            for (const [sid, info] of Object.entries(data)) {
+                const badge = document.getElementById(`sc-${sid}-badge`);
+                if (badge) {
+                    if (info.healthy) {
+                        badge.textContent = '● Running';
+                        badge.style.background = sid === 'slice1' ? '#166534' : sid === 'slice2' ? '#581c87' : '#7c2d12';
+                    } else {
+                        badge.textContent = '● Stopped';
+                        badge.style.background = '#7f1d1d';
+                        badge.style.color = '#f87171';
+                    }
+                }
+            }
+        })
+        .catch(() => {});
+}
+
+function sliceAction(sliceId, action) {
+    toast(`${action === 'stop' ? 'Stopping' : 'Starting'} ${sliceId}...`, 'info');
+    fetch(`${API}/api/slice/${action}/${sliceId}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            toast(`${data.name || sliceId}: ${data.action || action}`, data.success ? 'success' : 'error');
+            setTimeout(refreshSliceStatus, 2000);
+            setTimeout(refreshContainers, 3000);
+        })
+        .catch(e => toast('Error: ' + e, 'error'));
+}
+
+function pollResilienceTask(taskId, onDone) {
+    const poll = () => {
+        fetch(`${API}/api/resilience/task/${taskId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'complete' || data.status === 'error') {
+                    onDone(data);
+                } else {
+                    setTimeout(poll, 2000);
+                }
+            })
+            .catch(e => onDone({status: 'error', error: '' + e}));
+    };
+    setTimeout(poll, 2000);
+}
+
+function runResilienceTest() {
+    const btn = document.getElementById('btn-resilience');
+    btn.disabled = true;
+    btn.textContent = '⏳ Running...';
+    document.getElementById('res-status').textContent = 'Running resilience test... Stopping Slice 1+2, verifying Slice 3, then recovering (~20s)';
+    document.getElementById('resilience-timeline').innerHTML = '';
+
+    fetch(`${API}/api/resilience/test?stop=slice1,slice2&verify=slice3`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.task_id) {
+                pollResilienceTask(data.task_id, (result) => {
+                    btn.disabled = false;
+                    btn.textContent = '▶ Run Test';
+                    refreshSliceStatus();
+                    setTimeout(refreshContainers, 2000);
+
+                    if (result.status === 'complete') {
+                        const s = result.summary;
+
+                        // Update result cards
+                        document.getElementById('res-stopped').textContent = s.slices_stopped.length;
+                        const survived = document.getElementById('res-survived');
+                        survived.textContent = s.target_survived ? '✅ YES' : '❌ NO';
+                        survived.style.color = s.target_survived ? '#4ade80' : '#f87171';
+                        const fallback = document.getElementById('res-fallback');
+                        fallback.textContent = s.fallback_active ? `✅ ${s.fallback_topics} topics` : '❌ OFF';
+                        fallback.style.color = s.fallback_active ? '#fbbf24' : '#f87171';
+                        const recovered = document.getElementById('res-recovered');
+                        recovered.textContent = s.all_recovered ? '✅ YES' : '❌ NO';
+                        recovered.style.color = s.all_recovered ? '#4ade80' : '#f87171';
+
+                        // Build timeline
+                        let html = '';
+                        for (const step of result.steps) {
+                            const phaseColors = {
+                                before: '#38bdf8', stop: '#f87171', verify: '#fbbf24',
+                                restart: '#4ade80', recovery: '#c084fc',
+                                fallback: '#fb923c', mqtt: '#22d3ee'
+                            };
+                            const color = phaseColors[step.phase] || '#94a3b8';
+                            html += `<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">`;
+                            html += `<div style="min-width:6px;width:6px;height:6px;border-radius:50%;background:${color};margin-top:5px"></div>`;
+                            html += `<div style="flex:1">`;
+                            html += `<div style="font-size:11px;font-weight:600;color:${color}">${step.step}</div>`;
+
+                            if (step.results) {
+                                for (const [sid, info] of Object.entries(step.results)) {
+                                    const stopped = info.was_stopped ? ' [STOPPED]' : '';
+                                    const pdu = info.pdu ? '✅ PDU' : '❌ No PDU';
+                                    const ping = info.ping ? '✅ Ping' : '❌ No Ping';
+                                    const ip = info.tunnel_ip ? ` (${info.tunnel_ip})` : '';
+                                    const running = info.running ? '' : ' ⚠ Container down';
+                                    html += `<div style="font-size:10px;color:#94a3b8;margin-left:8px">${info.slice_name}${stopped}: ${pdu} | ${ping}${ip}${running}</div>`;
+                                }
+                            }
+                            if (step.result) {
+                                const r = step.result;
+                                html += `<div style="font-size:10px;color:#94a3b8;margin-left:8px">${r.success ? '✅' : '❌'} ${r.action || ''} ${r.name || ''}</div>`;
+                            }
+                            html += `</div></div>`;
+                        }
+                        document.getElementById('resilience-timeline').innerHTML = html;
+
+                        const fbInfo = s.fallback_active ? ` | Fallback MQTT active (${s.fallback_topics} topics via Slice 3)` : '';
+                        const verdict = s.target_survived
+                            ? `✅ Resilience PROVEN — ${result.verify_slice_name} survived + fallback MQTT active while ${s.slices_stopped.join(' + ')} were down${fbInfo}. Use ▶ Start buttons above to restart.`
+                            : `❌ Resilience test failed — ${result.verify_slice_name} was affected`;
+                        document.getElementById('res-status').textContent = verdict;
+                        // Hide recovery card since we don't auto-restart
+                        document.getElementById('res-recovered').textContent = '⏸ Manual';
+                        document.getElementById('res-recovered').style.color = '#94a3b8';
+                        toast(s.target_survived ? 'Resilience test passed! Slices remain stopped — restart manually when ready.' : 'Resilience test failed', s.target_survived ? 'success' : 'error');
+                    } else {
+                        document.getElementById('res-status').textContent = '❌ ' + (result.error || 'Test failed');
+                        toast(result.error || 'Failed', 'error');
+                    }
+                });
+            }
+        })
+        .catch(e => {
+            btn.disabled = false;
+            btn.textContent = '▶ Run Test';
+            toast('Error: ' + e, 'error');
+        });
+}
+
+
+// =============================================================================
+// Init
+// =============================================================================
+refreshContainers();
+loadConfigFiles();
+setInterval(refreshContainers, 10000);  // auto-refresh every 10s
+</script>
+</body>
+</html>

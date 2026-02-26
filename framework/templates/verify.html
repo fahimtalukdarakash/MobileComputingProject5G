@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5G Framework – Verification</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+        .navbar { background: #1e293b; border-bottom: 1px solid #334155; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+        .navbar h1 { font-size: 18px; font-weight: 600; color: #f8fafc; }
+        .navbar h1 span { color: #38bdf8; }
+        .nav-links { display: flex; gap: 8px; }
+        .nav-links a { color: #94a3b8; text-decoration: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; transition: all 0.2s; }
+        .nav-links a:hover, .nav-links a.active { color: #f8fafc; background: #334155; }
+
+        .main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+
+        /* Top bar */
+        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .top-bar h2 { font-size: 16px; color: #f8fafc; }
+        .btn { padding: 8px 16px; border: 1px solid #334155; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: #2563eb; color: #fff; border-color: #3b82f6; }
+        .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+        .btn-default { background: #1e293b; color: #e2e8f0; }
+        .btn-default:hover:not(:disabled) { background: #334155; }
+        .btn-sm { padding: 5px 12px; font-size: 11px; }
+        .btn-group { display: flex; gap: 8px; }
+
+        /* Summary banner */
+        .summary-banner { display: flex; gap: 16px; margin-bottom: 20px; }
+        .summary-stat { background: #1e293b; border-radius: 10px; padding: 16px 24px; flex: 1; text-align: center; border: 1px solid #334155; }
+        .summary-stat .num { font-size: 28px; font-weight: 700; }
+        .summary-stat .lbl { font-size: 11px; color: #94a3b8; text-transform: uppercase; margin-top: 2px; }
+        .summary-stat.pass .num { color: #4ade80; }
+        .summary-stat.fail .num { color: #f87171; }
+        .summary-stat.total .num { color: #38bdf8; }
+        .summary-stat.time .num { color: #fbbf24; font-size: 22px; }
+
+        /* Category cards */
+        .category-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+        .category-card { background: #1e293b; border-radius: 10px; border: 1px solid #334155; overflow: hidden; }
+        .category-header { padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; }
+        .category-header h3 { font-size: 14px; font-weight: 600; color: #f8fafc; }
+        .category-badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .category-badge.pass { background: #166534; color: #4ade80; }
+        .category-badge.fail { background: #7f1d1d; color: #f87171; }
+
+        /* Test rows */
+        .test-row { display: flex; align-items: center; padding: 10px 18px; border-bottom: 1px solid #0f172a; font-size: 12px; transition: background 0.15s; }
+        .test-row:hover { background: #0f172a; }
+        .test-row:last-child { border-bottom: none; }
+        .test-icon { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; margin-right: 12px; flex-shrink: 0; }
+        .test-icon.pass { background: #166534; color: #4ade80; }
+        .test-icon.fail { background: #7f1d1d; color: #f87171; }
+        .test-name { flex: 1; color: #e2e8f0; font-weight: 500; }
+        .test-detail { color: #64748b; font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-left: 12px; }
+        .test-tag { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 8px; }
+        .test-tag.expected { background: #1e3a5f; color: #38bdf8; }
+        .test-tag.actual-pass { background: #166534; color: #4ade80; }
+        .test-tag.actual-fail { background: #7f1d1d; color: #f87171; }
+
+        /* Throughput section */
+        .throughput-section { background: #1e293b; border-radius: 10px; border: 1px solid #334155; padding: 18px; margin-bottom: 20px; }
+        .throughput-section h3 { font-size: 14px; font-weight: 600; color: #f8fafc; margin-bottom: 14px; }
+        .throughput-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+        .throughput-form select, .throughput-form input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-family: inherit; }
+        .throughput-form input { width: 60px; }
+        .throughput-result { display: flex; gap: 16px; }
+        .tp-card { background: #0f172a; border-radius: 8px; padding: 14px 18px; flex: 1; text-align: center; border: 1px solid #334155; }
+        .tp-card .dir { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+        .tp-card .speed { font-size: 24px; font-weight: 700; color: #38bdf8; margin: 4px 0; }
+        .tp-card .unit { font-size: 11px; color: #94a3b8; }
+
+        /* Loading / empty states */
+        .empty-state { text-align: center; padding: 60px 20px; color: #64748b; }
+        .empty-state h3 { font-size: 18px; margin-bottom: 8px; color: #94a3b8; }
+        .spinner { width: 20px; height: 20px; border: 3px solid #334155; border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .running-text { color: #38bdf8; font-size: 14px; }
+
+        /* Full width card */
+        .full-width { grid-column: span 2; }
+
+        /* Progress bar */
+        .progress-bar { height: 4px; background: #334155; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+        .progress-fill.good { background: #4ade80; }
+        .progress-fill.warn { background: #fbbf24; }
+        .progress-fill.bad { background: #f87171; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h1>📡 <span>5G</span> Network Framework</h1>
+    <div class="nav-links">
+        <a href="/">Topology</a>
+        <a href="/control">Control</a>
+        <a href="/usecases">Use Cases</a>
+        <a href="/verify" class="active">Verify</a>
+        <a href="/monitoring">Monitor</a>
+        <a href="/loadtest">Load Test</a>
+    </div>
+</div>
+
+<div class="main">
+    <div class="top-bar">
+        <h2>🧪 Network Verification</h2>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runFullTests()" id="btn-run-all">▶ Run All Tests</button>
+            <button class="btn btn-default" onclick="runIsolation()">🔒 Isolation Only</button>
+            <button class="btn btn-default" onclick="runHealth()">❤ Health Only</button>
+        </div>
+    </div>
+
+    <!-- Summary Banner -->
+    <div class="summary-banner" id="summary-banner" style="display:none">
+        <div class="summary-stat total"><div class="num" id="sum-total">—</div><div class="lbl">Total Tests</div></div>
+        <div class="summary-stat pass"><div class="num" id="sum-passed">—</div><div class="lbl">Passed</div></div>
+        <div class="summary-stat fail"><div class="num" id="sum-failed">—</div><div class="lbl">Failed</div></div>
+        <div class="summary-stat time"><div class="num" id="sum-time">—</div><div class="lbl">Duration</div></div>
+    </div>
+
+    <!-- Test Results -->
+    <div id="test-results">
+        <div class="empty-state" id="empty-state">
+            <h3>No tests run yet</h3>
+            <p>Click "Run All Tests" to start the verification suite.</p>
+            <p style="margin-top:12px;font-size:12px">Tests include: PDU session checks, connectivity pings, slice isolation, and service health.</p>
+        </div>
+    </div>
+
+    <!-- Throughput Section -->
+    <div class="throughput-section">
+        <h3>📈 Throughput Test (iperf3)</h3>
+        <div class="throughput-form">
+            <label style="font-size:12px;color:#94a3b8">Client:</label>
+            <select id="tp-client">
+                <option value="ue1">UE1 (IoT)</option>
+                <option value="ue2">UE2 (Vehicle)</option>
+                <option value="ue3">UE3 (Restricted)</option>
+            </select>
+            <label style="font-size:12px;color:#94a3b8">Server:</label>
+            <select id="tp-server">
+                <option value="edge">Edge Server</option>
+                <option value="mqtt">MQTT Broker</option>
+                <option value="ue1">UE1 (IoT)</option>
+                <option value="ue2">UE2 (Vehicle)</option>
+                <option value="ue3">UE3 (Restricted)</option>
+            </select>
+            <label style="font-size:12px;color:#94a3b8">Duration:</label>
+            <input type="number" id="tp-duration" value="5" min="2" max="30"> <span style="font-size:11px;color:#64748b">sec</span>
+            <button class="btn btn-primary btn-sm" onclick="runThroughput()" id="btn-tp">▶ Run</button>
+        </div>
+        <div class="throughput-result" id="tp-result" style="display:none">
+            <div class="tp-card">
+                <div class="dir">⬆ Upload</div>
+                <div class="speed" id="tp-upload">—</div>
+                <div class="unit">Mbps</div>
+            </div>
+            <div class="tp-card">
+                <div class="dir">⬇ Download</div>
+                <div class="speed" id="tp-download">—</div>
+                <div class="unit">Mbps</div>
+            </div>
+        </div>
+        <div id="tp-status" style="font-size:12px;color:#64748b;margin-top:8px"></div>
+    </div>
+</div>
+
+<script>
+const API = window.location.origin;
+
+// =============================================================================
+// Run full test suite
+// =============================================================================
+function runFullTests() {
+    const btn = document.getElementById('btn-run-all');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Running tests...';
+    document.getElementById('empty-state')?.remove();
+    document.getElementById('summary-banner').style.display = 'none';
+    document.getElementById('test-results').innerHTML = '<div class="empty-state"><div class="running-text"><span class="spinner"></span>Running all verification tests... this may take 30-60 seconds.</div></div>';
+
+    fetch(`${API}/api/tests/full`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => renderFullResults(data))
+        .catch(e => {
+            document.getElementById('test-results').innerHTML = `<div class="empty-state"><h3 style="color:#f87171">Error: ${e}</h3></div>`;
+        })
+        .finally(() => { btn.disabled = false; btn.innerHTML = '▶ Run All Tests'; });
+}
+
+function renderFullResults(data) {
+    const s = data.summary || {};
+    document.getElementById('summary-banner').style.display = 'flex';
+    document.getElementById('sum-total').textContent = s.total || 0;
+    document.getElementById('sum-passed').textContent = s.passed || 0;
+    document.getElementById('sum-failed').textContent = s.failed || 0;
+    document.getElementById('sum-time').textContent = (s.duration_s || 0) + 's';
+
+    const container = document.getElementById('test-results');
+    let html = '<div class="category-grid">';
+
+    const icons = { pdu_sessions: '📱', connectivity: '🌐', slice_isolation: '🔒', service_health: '❤' };
+
+    for (const [catId, cat] of Object.entries(data.categories || {})) {
+        const allPass = cat.passed === cat.total;
+        const icon = icons[catId] || '🧪';
+
+        html += `
+        <div class="category-card ${catId === 'connectivity' ? 'full-width' : ''}">
+            <div class="category-header">
+                <h3>${icon} ${cat.name}</h3>
+                <span class="category-badge ${allPass ? 'pass' : 'fail'}">${cat.passed}/${cat.total} passed</span>
+            </div>`;
+
+        for (const t of cat.tests || []) {
+            const passClass = t.pass ? 'pass' : 'fail';
+            let detail = '';
+
+            if (t.rtt_avg !== undefined && t.rtt_avg !== null) detail += `RTT: ${t.rtt_avg}ms`;
+            if (t.loss_pct !== undefined && t.loss_pct !== null) detail += `${detail ? ' | ' : ''}Loss: ${t.loss_pct}%`;
+            if (t.ip) detail += `IP: ${t.ip}`;
+            if (t.state) detail += `${detail ? ' | ' : ''}State: ${t.state}`;
+            if (t.detail && !detail) detail = t.detail;
+
+            // For isolation tests, show expected vs actual
+            let tags = '';
+            if (t.expected) {
+                tags += `<span class="test-tag expected">Expected: ${t.expected}</span>`;
+                tags += `<span class="test-tag actual-${t.pass ? 'pass' : 'fail'}">Actual: ${t.actual}</span>`;
+            }
+
+            html += `
+            <div class="test-row">
+                <div class="test-icon ${passClass}">${t.pass ? '✓' : '✗'}</div>
+                <div class="test-name">${t.name}</div>
+                ${tags}
+                <div class="test-detail">${detail}</div>
+            </div>`;
+        }
+
+        // Progress bar
+        const pct = cat.total > 0 ? (cat.passed / cat.total * 100) : 0;
+        const pctClass = pct === 100 ? 'good' : pct >= 50 ? 'warn' : 'bad';
+        html += `<div style="padding:0 18px 10px"><div class="progress-bar"><div class="progress-fill ${pctClass}" style="width:${pct}%"></div></div></div>`;
+        html += '</div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// =============================================================================
+// Individual test runners
+// =============================================================================
+function runIsolation() {
+    document.getElementById('test-results').innerHTML = '<div class="empty-state"><div class="running-text"><span class="spinner"></span>Running slice isolation tests...</div></div>';
+
+    fetch(`${API}/api/tests/isolation`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            renderFullResults({
+                summary: { total: data.total, passed: data.passed, failed: data.total - data.passed, duration_s: '—' },
+                categories: { slice_isolation: { name: 'Slice 3 Isolation', tests: data.tests, passed: data.passed, total: data.total } },
+            });
+        })
+        .catch(e => { document.getElementById('test-results').innerHTML = `<div class="empty-state"><h3 style="color:#f87171">Error: ${e}</h3></div>`; });
+}
+
+function runHealth() {
+    document.getElementById('test-results').innerHTML = '<div class="empty-state"><div class="running-text"><span class="spinner"></span>Checking service health...</div></div>';
+
+    fetch(`${API}/api/tests/health`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            renderFullResults({
+                summary: { total: data.total, passed: data.passed, failed: data.total - data.passed, duration_s: '—' },
+                categories: { service_health: { name: 'Service Health', tests: data.tests, passed: data.passed, total: data.total } },
+            });
+        })
+        .catch(e => { document.getElementById('test-results').innerHTML = `<div class="empty-state"><h3 style="color:#f87171">Error: ${e}</h3></div>`; });
+}
+
+// =============================================================================
+// Throughput test
+// =============================================================================
+function runThroughput() {
+    const client = document.getElementById('tp-client').value;
+    const server = document.getElementById('tp-server').value;
+    const duration = document.getElementById('tp-duration').value;
+    const btn = document.getElementById('btn-tp');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>';
+    document.getElementById('tp-status').innerHTML = `<span class="spinner"></span>Running iperf3: ${client} ↔ ${server} for ${duration}s... (this takes ~${duration * 2 + 5}s)`;
+    document.getElementById('tp-result').style.display = 'none';
+
+    fetch(`${API}/api/tests/throughput?client=${client}&server=${server}&duration=${duration}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('tp-result').style.display = 'flex';
+            const up = data.upload || {};
+            const down = data.download || {};
+            document.getElementById('tp-upload').textContent = up.mbps !== undefined ? up.mbps : (up.error ? 'ERR' : '—');
+            document.getElementById('tp-download').textContent = down.mbps !== undefined ? down.mbps : (down.error ? 'ERR' : '—');
+
+            let statusText = `${client.toUpperCase()} ↔ ${server.toUpperCase()} | ${data.timestamp || ''}`;
+            if (up.error) statusText += ` | Upload error: ${up.error.substring(0, 80)}`;
+            if (down.error) statusText += ` | Download error: ${down.error.substring(0, 80)}`;
+            document.getElementById('tp-status').textContent = statusText;
+        })
+        .catch(e => {
+            document.getElementById('tp-status').innerHTML = `<span style="color:#f87171">Error: ${e}</span>`;
+        })
+        .finally(() => { btn.disabled = false; btn.innerHTML = '▶ Run'; });
+}
+</script>
+</body>
+</html>

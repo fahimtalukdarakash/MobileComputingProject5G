@@ -260,40 +260,6 @@ services:
     depends_on:
       - gnb
 
-  ue-bulk-01:
-    container_name: ue-bulk-01
-    image: "fgftk/ue-ueransim:${UERANSIM_VERSION}"
-    command: "-c /UERANSIM/config/ue.yaml"
-    networks:
-      open5gs:
-        aliases:
-          - ue-bulk-01.ueransim.org
-    configs:
-      - source: ue_bulk_01_config
-        target: /UERANSIM/config/ue.yaml
-    privileged: true
-    cap_add:
-      - NET_ADMIN
-    depends_on:
-      - gnb
-
-  ue-bulk-02:
-    container_name: ue-bulk-02
-    image: "fgftk/ue-ueransim:${UERANSIM_VERSION}"
-    command: "-c /UERANSIM/config/ue.yaml"
-    networks:
-      open5gs:
-        aliases:
-          - ue-bulk-02.ueransim.org
-    configs:
-      - source: ue_bulk_02_config
-        target: /UERANSIM/config/ue.yaml
-    privileged: true
-    cap_add:
-      - NET_ADMIN
-    depends_on:
-      - gnb
-
 
   webui:
     container_name: webui
