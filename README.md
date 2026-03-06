@@ -1,195 +1,77 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/F_GIW8P0)
-[![Open in Visual Studio Code](https://classroom.github.com/assets/open-in-vscode-2e0aaae1b6195c2367325f4f02e2d04e9abb55f0b24a779b69b11b9e10269abc.svg)](https://classroom.github.com/online_ide?assignment_repo_id=21866840&assignment_repo_type=AssignmentRepo)
-# Mobile Computing Template Wintersemester 2025/26
+# 5G Network Framework
 
-The following steps will help you apply what is provided here.
+**Mobile Computing WS 2025/26 — Group M**
 
-## Installation
+A comprehensive 5G network management framework built on **Open5GS** (5G Core) and **UERANSIM** (RAN Simulator), fully containerized with Docker.
 
-> [!NOTE]
-> Recommended minimum resources:
-> - CPU: 4 cores
-> - Memory: 8 GB RAM
-> - Disk space: 50 GB
+### UERANSIM — Functional Network Slicing & Use Cases
 
-#### Install Ubuntu 24.04 LTS  
+Using UERANSIM, we built a complete 5G network with three dedicated network slices, each with its own SMF and UPF pair. **Slice 1 (IoT)** connects three IoT sensor UEs that publish temperature, humidity, CO₂, PM2.5, and pressure data via MQTT through the 5G network to a Node-RED dashboard. **Slice 2 (Vehicle)** connects two vehicle UEs that send GPS, speed, and alert telemetry via HTTP to an Edge server, which aggregates and forwards data to MQTT. **Slice 3 (Restricted)** demonstrates a UE with an active PDU session but blocked internet access — it can only reach internal services. The framework provides an interactive web UI with live topology visualization, a control dashboard for managing containers and configurations, 20 automated test cases verifying health, connectivity, slice isolation and performance, transport network control with 6 QoS profiles and priority-based traffic shaping (HTB), slice resilience testing with automatic MQTT failover, and real-time monitoring of Docker stats and MQTT streams.
 
-Download and install [Ubuntu 24.04 Desktop](https://ubuntu.com/download/desktop)   
-E.g., you can use a VM under Windows with the following tools, for example: VirtualBox, VMware Workstation or Hyper-V (built-in for Pro/Enterprise).
-> [!CAUTION]
-> WSL has known issues with SCTP, which is relevant to the project!
+### PacketRusher — Load Testing & Call Simulation
 
-After installation update and upgrade packages:
-```bash
-sudo apt update 
-sudo apt upgrade
-```
+Using PacketRusher, we extended the framework with multi-UE load testing and call simulation capabilities. PacketRusher registers up to 50+ UEs simultaneously against the 5G core, establishing real GTP-U tunnels through the UPF — unlike UERANSIM's iperf3 which routes through the Docker bridge. This enables measuring actual GTP tunnel throughput and stress-testing the core network's registration capacity. On top of the load testing, we implemented call simulation between the registered UEs with three call types: **Voice Calls** (5QI=1, 64 kbps AMR-WB), **Video Calls** (5QI=2, 2 Mbps H.264 720p), and **Emergency 112 Calls** (5QI=69, highest priority with pre-emption). Each call generates realistic 5G NAS/SIP signaling logs and exchanges actual MQTT messages as proof of communication. Emergency calls demonstrate priority handling with 3.6× faster connection setup compared to regular voice calls.
 
-#### Install further needed packages:
-```bash
-sudo apt install bzip2 git make gcc
-```
+---
 
-#### Install MongoDB
-```bash
-wget -qO- https://www.mongodb.org/static/pgp/server-8.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-8.0.asc
-echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
-sudo apt-get update
-sudo apt-get install -y mongodb-mongosh
-```
+## Key Features
 
-#### Install Wireshark
-```bash
-sudo apt install wireshark
-# allow also other users than super user
-sudo adduser $USER wireshark
-```
+- **Two Deployment Modes:** Basic single-slice architecture and advanced 3-slice network slicing
+- **Interactive Web UI:** 7 pages — Topology, Control, Verify, Use Cases, Monitor, Load Test, Basic Topology
+- **Network Slicing:** 3 dedicated slices (IoT, Vehicle, Restricted) with independent SMF/UPF pairs
+- **Automated Testing:** 20 automated test cases covering health, connectivity, isolation, and performance
+- **Transport Network Control:** Linux `tc` traffic shaping with 6 QoS profiles and priority-based HTB rules
+- **Load Testing:** PacketRusher integration for multi-UE stress testing with real GTP-U tunnels
+- **Call Simulation:** Voice, Video, and Emergency 112 calls with real MQTT message exchange
+- **Slice Resilience:** Automated failover testing with MQTT fallback mechanisms
+- **Auto-Provisioning:** Subscribers automatically registered in MongoDB on startup
+- **Live Monitoring:** Docker stats, MQTT streams, and UE metrics in real-time
 
-#### Install Docker and Docker Compose
+---
 
-The following is taken from the [Docker](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository) instructions
-```bash
-# Add Docker's official GPG key:
-sudo apt update
-sudo apt install ca-certificates curl
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
-```
-```bash
-# Add the repository to Apt sources:
-sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
-Types: deb
-URIs: https://download.docker.com/linux/ubuntu
-Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
-Components: stable
-Signed-By: /etc/apt/keyrings/docker.asc
-EOF
-```
-```bash
-# Update and install
-sudo apt update
-sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-```
-```bash
-# Add permissions
-sudo usermod -aG docker ${USER}
-```
-```bash
-# Check Docker and Docker Compose version
-docker version
-docker compose version
-```
+## Documentation
 
-You should also change the IP address and subnet of the Docker bridge via the ```/etc/docker/daemon.json``` file (create it if needed).  
-The “bip” entry defines the docker0 subnet. Here is an example of the ```/etc/docker/daemon.json``` file:
-```bash
-{ "bip": "172.20.0.1/24" }
-```
+| # | Document | Description |
+|---|----------|-------------|
+| 1 | [Project Structure](docs/project-structure.md) | Complete folder and file structure of the repository |
+| 2 | [Architecture & Design](docs/architecture-design.md) | System architecture, network design, and component overview |
+| 3 | [Configuration Files](docs/config-files.md) | Description of all Open5GS and UERANSIM config YAML files |
+| 4 | [Docker Compose Files](docs/compose-files.md) | Description of all Docker Compose files and services |
+| 5 | [Use Cases & Test Cases](docs/use-cases-test-cases.md) | All use cases (IoT, Vehicle, Load Test, Calls) and test cases |
+| 6 | [Framework Backend](docs/framework-backend.md) | Description of each Python module in the `framework/` folder |
+| 7 | [Framework Frontend](docs/framework-frontend.md) | Description of each HTML template in `framework/templates/` |
+| 8 | [User Manual](docs/user-manual.md) | Step-by-step guide for setup, usage, and demonstration |
 
-Next reboot your machine or computer!
+---
 
-#### Install 5G GTP-U Kernel Module for Packetrusher
+## Technology Stack
 
-```bash
-git clone -b v0.9.14 https://github.com/free5gc/gtp5g.git
-cd gtp5g
-make
-sudo make install
-```
+| Component | Technology |
+|-----------|-----------|
+| 5G Core Network | Open5GS |
+| RAN Simulator | UERANSIM |
+| Load Tester | PacketRusher |
+| Container Runtime | Docker + Docker Compose |
+| Backend Framework | FastAPI (Python) |
+| Frontend | HTML5, CSS3, JavaScript, vis-network |
+| Message Broker | Eclipse Mosquitto (MQTT) |
+| Dashboard | Node-RED |
+| Database | MongoDB |
+| Traffic Control | Linux tc (HTB, netem), iptables |
 
-After installation, ensure the module is installed  
-```bash
-modinfo gtp5g
-```
+---
 
-#### Install Visual Studio Code
-```bash
-sudo snap install --classic code 
-```
+## Ports
 
-Open Visual Studio Code and clone your GitHub project repository see [Tutorial](https://code.visualstudio.com/docs/sourcecontrol/intro-to-git#_clone-a-repository-locally)
+| Port | Service |
+|------|---------|
+| 8000 | Framework Web UI |
+| 1880 | Node-RED Dashboard |
+| 1883 | MQTT Broker |
+| 5000 | Edge Server |
+| 9999 | Open5GS WebUI |
+| 27017 | MongoDB |
 
-Next install the following extension packages in Visual Studio Code  
-![Extension Packages](docs/images/vsc.png) 
+---
 
-#### Configure host IP
-Configure the .env-file under ```/build-files/open5gs.env```
-```bash
-HOST_IP_ADDRESS=10.0.2.15
-```
-Instead of the IP address 10.0.2.15, enter the local IP address of your computer or virtual machine.
-
-## Starting the first application
-
-Enter the following comand inside the Visual Studio Code Terminal  
-```bash
-docker compose -f compose-files/basic/packetrusher/docker-compose.yaml --env-file=build-files/open5gs.env up -d
-```
-
-All necessary Docker containers should now be downloaded from the Internet and started using Docker Compose.  
-After startup, a user profile should be created in the 5G core database.  
-You can do this via the WebUI, for example.  
-
-#### Register Subscriber Information
-
-Connect to http://localhost:9999 and login with admin account.  
-Username : admin  
-Password : 1423  
-
-
-Tip: You can change the password in Account Menu.
-
-
-To add subscriber information, you can do WebUI operations in the following order:  
-- Go to Subscriber Menu.
-- Click + Button to add a new subscriber.
-- Fill the IMSI, security context(K, OPc, AMF), and APN of the subscriber.
-- Click SAVE Button  
-![Extension Packages](docs/images/subscriber.png) 
-
-The corresponding UE credentials can be found in the UE configuration file, e.g., in the currently used docker compose scenario under
-[/configs/basic/packetrusher/packetrusher.yaml](/configs/basic/packetrusher/packetrusher.yaml)  
-
-You also may add a user with slice to db via shell/Terminal  
-```bash
-./open5gs-dbctl add_ue_with_slice 001011234567891 00000000000000000000000000000000 00000000000000000000000000000000 internet 01 1
-```
-
-For more information on using the script, see the [open5gs-dbctl](open5gs-dbctl) script itself.  
-
-Next stop the docker compose example with the following command.
-```bash
-docker compose -f compose-files/basic/packetrusher/docker-compose.yaml --env-file=build-files/open5gs.env down
-```
-
-After adding a subscriber to the database the subscriber data will be persistently stored. It will not be removed when a docker container stops.  
-
-#### Start Wireshark
-Start Wireshark and choose Interface __any__ for capturing packets.  
-Set the filter to ```http2.data.data || http2.headers || nas-5gs || gtp || ngap || sctp || pfcp```  
-![Wireshark Filter](/docs/images/wireshark.png)
-
-Now start scenario UERANSIM.  
-```bash
-docker compose -f compose-files/basic/ueransim/docker-compose.yaml --env-file=build-files/open5gs.env up -d
-```
-You should now be able to see and analyze all messages in Wireshark.  
-How to use UERANSIM, you can read the file [Ueransim.md](/docs/ueransim.md).  
-Try a ping request with UERANSIM, for example.  
-You should be able to see the ping messages in Wireshark, for example by setting the filter to ```gtp```.  
-
-Do not forget to exit the scenario.
-```bash
-docker compose -f compose-files/basic/ueransim/docker-compose.yaml --env-file=build-files/open5gs.env down
-```
-
-## Further information 
-Relevant information regarding the project setup can be found at: [Deployments.md](/docs/deployments.md) and [Compose.md](/docs/compose.md)
-
-- [Open5GS](https://open5gs.org/open5gs/docs/)
-- [UERANSIM](https://github.com/aligungr/UERANSIM/wiki)
-- [Packetrusher](https://github.com/HewlettPackard/PacketRusher/wiki)
-- [Docker CLI Reference](https://docs.docker.com/reference/cli/docker/)
-- [Docker Compose Reference](https://docs.docker.com/reference/compose-file/)
-- [Docker File Reference](https://docs.docker.com/reference/dockerfile/)
+*Mobile Computing WS 2025/26 — Group M*
